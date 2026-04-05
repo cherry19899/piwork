@@ -1,0 +1,23 @@
+{
+  "writing": "Escrita",
+  "design": "Design",
+  "data_entry": "Entrada de Dados",
+  "transcription": "Transcrição",
+  "moderation": "Moderação",
+  "support": "Suporte",
+  "analysis": "Análise",
+  "development": "Desenvolvimento",
+  "jobs_posted": "Trabalhos Postados",
+  "jobs_completed": "Trabalhos Concluídos",
+  "in_progress": "Em Progresso",
+  "completed": "Concluído",
+  "cancelled": "Cancelado",
+  "hours": "Horas",
+  "day": "Dia",
+  "days": "Dias",
+  "week": "Semana",
+  "price": "Preço",
+  "category": "Categoria",
+  "requester": "Solicitante",
+  "worker": "Trabalhador"
+}

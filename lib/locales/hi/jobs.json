@@ -1,0 +1,23 @@
+{
+  "writing": "लेखन",
+  "design": "डिज़ाइन",
+  "data_entry": "डेटा एंट्री",
+  "transcription": "प्रतिलेखन",
+  "moderation": "संचालन",
+  "support": "सहायता",
+  "analysis": "विश्लेषण",
+  "development": "विकास",
+  "jobs_posted": "पोस्ट किए गए नौकरियां",
+  "jobs_completed": "पूर्ण नौकरियां",
+  "in_progress": "प्रगति में",
+  "completed": "पूर्ण",
+  "cancelled": "रद्द",
+  "hours": "घंटे",
+  "day": "दिन",
+  "days": "दिन",
+  "week": "सप्ताह",
+  "price": "मूल्य",
+  "category": "श्रेणी",
+  "requester": "अनुरोधकर्ता",
+  "worker": "कार्यकर्ता"
+}

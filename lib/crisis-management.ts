@@ -1,0 +1,1 @@
+export const crisisProtocols = { massSpam: { pausePublications: () => {}, moderateNewUsers: () => {} }, piLossBug: { stopPayments: () => {}, auditTransactions: () => {}, compensate: () => {} }, reputationAttack: { disableReviews: () => {}, investigate: () => {} } };
