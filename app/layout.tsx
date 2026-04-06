@@ -20,7 +20,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  userScalable: false,
+  import './i18n';rScalable: false,
   themeColor: "#0a0a0a",
 };
 
