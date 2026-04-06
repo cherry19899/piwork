@@ -1,1 +1,3 @@
-Public launch documentation with user guides for Pi purchase, KYC verification, and scam prevention.
+'use client';
+
+//Public launch documentation with user guides for Pi purchase, KYC verification, and scam prevention.

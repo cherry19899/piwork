@@ -1,3 +1,5 @@
+'use client';
+
 import type { Meta, StoryObj } from '@storybook/react';
 import { AccessibleInput, AccessibleTextarea, AccessibleSelect } from '@/components/ui/accessible-input';
 

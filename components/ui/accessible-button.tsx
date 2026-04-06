@@ -1,3 +1,5 @@
+'use client';
+
 import React, { ReactNode, useState } from 'react';
 import { PIWORK_THEME } from '@/lib/piwork-design-tokens';
 import { Spinner } from './spinner';

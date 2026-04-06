@@ -1,3 +1,5 @@
+'use client';
+
 // Global Regional Market Overview Component
 // Mobile-optimized display of all 12 markets with key metrics
 

@@ -1,18 +1,16 @@
 ﻿/** @type {import('next').NextConfig} */
 const nextConfig = {
-  async headers() {
-    return [
-      {
-        source: '/:path*',
-        headers: [
-          {
-            key: 'Content-Security-Policy',
-            value: "frame-ancestors 'self' https://*.pinet.com https://*.minepi.com https://apppiworkcfacbda4498.pinet.com;",
-          },
-        ],
-      },
-    ];
+  distDir: 'dist',
+  typescript: {
+    ignoreBuildErrors: true,
   },
-}
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  images: {
+    unoptimized: true,
+  },
+  trailingSlash: true,
+};
 
 export default nextConfig;

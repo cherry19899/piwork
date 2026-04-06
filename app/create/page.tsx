@@ -31,8 +31,9 @@ export default function CreateTaskPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+  if (e) e.preventDefault();
+    
     if (currentStep === 3) {
       // Submit task
       router.push('/feed');

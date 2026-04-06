@@ -1,0 +1,16 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/payments/validate-escrow/route": "app/api/payments/validate-escrow/route.js",
+  "/api/payments/route": "app/api/payments/route.js",
+  "/api/tasks/unlock/route": "app/api/tasks/unlock/route.js",
+  "/chat/[id]/page": "app/chat/[id]/page.js",
+  "/chats/page": "app/chats/page.js",
+  "/create/page": "app/create/page.js",
+  "/feed/page": "app/feed/page.js",
+  "/login/page": "app/login/page.js",
+  "/page": "app/page.js",
+  "/onboarding/page": "app/onboarding/page.js",
+  "/settings/page": "app/settings/page.js",
+  "/profile/page": "app/profile/page.js",
+  "/task/[id]/page": "app/task/[id]/page.js"
+}

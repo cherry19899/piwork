@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { KYCService } from '@/lib/pi-sdk-service';
 

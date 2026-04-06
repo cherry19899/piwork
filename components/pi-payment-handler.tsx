@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useCallback } from 'react';
 import { PiPaymentService, PiPaymentRequest } from '@/lib/pi-sdk-service';
 

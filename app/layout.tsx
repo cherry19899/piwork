@@ -1,3 +1,4 @@
+import './i18n';
 import type React from "react";
 import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
@@ -20,8 +21,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  import './i18n';rScalable: false,
-  themeColor: "#0a0a0a",
+userScalable: false,
+themeColor: "#0a0a0a",
 };
 
 export default function RootLayout({

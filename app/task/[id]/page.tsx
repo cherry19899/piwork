@@ -9,7 +9,12 @@ import { PiworkButton } from '@/components/piwork-button';
 type TaskStatus = 'Open' | 'In Progress' | 'Completed';
 type TabType = 'details' | 'applications' | 'chat';
 
-export default function TaskDetailPage({ params }: { params: { id: string } }) {
+export default async function TaskDetailPage({ 
+  params 
+}: { 
+  params: Promise<{ id: string }> 
+}) {
+  const { id } = await params;
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('details');
   const [taskStatus] = useState<TaskStatus>('Open');
