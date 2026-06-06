@@ -98,6 +98,17 @@ export async function deleteJob(jobId: number | string) {
   return apiRequest(`/api/jobs/${jobId}`, { method: 'DELETE' });
 }
 
+export async function hireFreelancer(jobId: number | string, applicationId: number, freelancerId: string): Promise<{ success: boolean; room_id: string; freelancer_name: string }> {
+  return apiRequest(`/api/jobs/${jobId}/hire`, {
+    method: 'POST',
+    body: JSON.stringify({ application_id: applicationId, freelancer_id: freelancerId }),
+  });
+}
+
+export async function completeJob(jobId: number | string): Promise<{ success: boolean }> {
+  return apiRequest(`/api/jobs/${jobId}/complete`, { method: 'POST' });
+}
+
 export async function getMyJobs() {
   const userId = getUserId();
   if (!userId) return { jobs: [], total: 0, page: 1, total_pages: 0 };

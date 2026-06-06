@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { PIWORK_THEME } from '@/lib/piwork-design-tokens';
 import { BottomNavigation } from '@/components/bottom-navigation';
 import { PiworkButton } from '@/components/piwork-button';
-import { getJob, applyToJob, type Job } from '@/lib/workpro-api';
+import { getJob, applyToJob, hireFreelancer, completeJob, type Job } from '@/lib/workpro-api';
 import { PiPaymentService } from '@/lib/pi-sdk-service';
 
 type TabType = 'details' | 'applications';
@@ -13,15 +13,24 @@ type TabType = 'details' | 'applications';
 export default function TaskDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const [job, setJob] = useState<Job | null>(null);
+  const [job, setJob] = useState<Job & { hired_freelancer_id?: string; hired_freelancer_name?: string } | null>(null);
   const [applications, setApplications] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('details');
+
+  // Apply state
   const [applying, setApplying] = useState(false);
   const [applyMessage, setApplyMessage] = useState('');
   const [showApplyForm, setShowApplyForm] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
   const [applySuccess, setApplySuccess] = useState(false);
+
+  // Hire state
+  const [hiring, setHiring] = useState<number | null>(null);
+  const [hireError, setHireError] = useState<string | null>(null);
+
+  // Complete state
+  const [completing, setCompleting] = useState(false);
 
   const currentUserId = typeof window !== 'undefined'
     ? JSON.parse(localStorage.getItem('piUser') || '{}')?.uid || null
@@ -30,8 +39,9 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
   useEffect(() => {
     getJob(id)
       .then(({ job, applications }) => {
-        setJob(job);
+        setJob(job as any);
         setApplications(applications);
+        if (job.posted_by === currentUserId) setActiveTab('applications');
       })
       .catch(() => {})
       .finally(() => setIsLoading(false));
@@ -39,6 +49,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
 
   const isMyJob = job?.posted_by === currentUserId;
   const alreadyApplied = applications.some((a) => a.freelancer_id === currentUserId);
+  const myApplication = applications.find((a) => a.freelancer_id === currentUserId);
 
   const handleApply = async () => {
     if (!job) return;
@@ -48,11 +59,77 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
       await applyToJob(job.id, applyMessage);
       setApplySuccess(true);
       setShowApplyForm(false);
-      setApplications((prev) => [...prev, { freelancer_id: currentUserId }]);
+      setApplications((prev) => [...prev, { freelancer_id: currentUserId, status: 'pending', message: applyMessage }]);
     } catch (e: any) {
       setApplyError(e.message || 'Ошибка при отклике');
     } finally {
       setApplying(false);
+    }
+  };
+
+  const handleHire = async (app: any) => {
+    if (!job) return;
+    setHiring(app.id);
+    setHireError(null);
+
+    try {
+      // Start Pi payment for escrow
+      const payment = await PiPaymentService.createPayment({
+        amount: job.budget,
+        memo: `Escrow: ${job.title.substring(0, 50)}`,
+        metadata: {
+          type: 'escrow',
+          job_id: job.id,
+          freelancer_id: app.freelancer_id,
+          application_id: app.id,
+        },
+      });
+
+      if (!payment) {
+        // If Pi payment failed/cancelled, try hiring without escrow (client can send Pi manually)
+        const result = await hireFreelancer(job.id, app.id, app.freelancer_id);
+        setJob((prev: any) => prev ? {
+          ...prev,
+          status: 'in_progress',
+          hired_freelancer_id: app.freelancer_id,
+          hired_freelancer_name: app.freelancer_name,
+        } : prev);
+        setApplications((prev) => prev.map((a) =>
+          a.id === app.id ? { ...a, status: 'accepted' } : { ...a, status: a.status === 'pending' ? 'rejected' : a.status }
+        ));
+        if (result.room_id) router.push(`/chat/${result.room_id}`);
+        return;
+      }
+
+      // After payment, hire the freelancer
+      const result = await hireFreelancer(job.id, app.id, app.freelancer_id);
+      setJob((prev: any) => prev ? {
+        ...prev,
+        status: 'in_progress',
+        hired_freelancer_id: app.freelancer_id,
+        hired_freelancer_name: app.freelancer_name,
+      } : prev);
+      setApplications((prev) => prev.map((a) =>
+        a.id === app.id ? { ...a, status: 'accepted' } : { ...a, status: a.status === 'pending' ? 'rejected' : a.status }
+      ));
+      if (result.room_id) router.push(`/chat/${result.room_id}`);
+    } catch (e: any) {
+      setHireError(e.message || 'Ошибка при найме');
+    } finally {
+      setHiring(null);
+    }
+  };
+
+  const handleComplete = async () => {
+    if (!job) return;
+    setCompleting(true);
+    try {
+      await completeJob(job.id);
+      setJob((prev: any) => prev ? { ...prev, status: 'completed' } : prev);
+    } catch (e: any) {
+      alert(e.message || 'Ошибка при завершении');
+    } finally {
+      setCompleting(false);
     }
   };
 
@@ -61,7 +138,6 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
     in_progress: { bg: '#F59E0B', label: 'В работе' },
     completed: { bg: '#22C55E', label: 'Завершена' },
   };
-
   const statusStyle = statusColors[job?.status || 'open'] || statusColors['open'];
 
   if (isLoading) {
@@ -77,7 +153,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: PIWORK_THEME.colors.bgPrimary }}>
         <p style={{ color: PIWORK_THEME.colors.textSecondary }}>Задача не найдена</p>
         <button onClick={() => router.push('/feed')} style={{ marginTop: 16, color: PIWORK_THEME.colors.primary, background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>
-          ← Назад
+          ← Назад к ленте
         </button>
       </div>
     );
@@ -93,33 +169,45 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
         borderBottom: `1px solid ${PIWORK_THEME.colors.border}`,
         padding: `${PIWORK_THEME.spacing.md}px`,
         display: 'flex', alignItems: 'center', gap: PIWORK_THEME.spacing.md,
+        position: 'sticky', top: 0, zIndex: 10,
       }}>
         <button onClick={() => router.back()} style={{
           backgroundColor: 'transparent', border: 'none',
           color: PIWORK_THEME.colors.primary, fontSize: 24, cursor: 'pointer', padding: 0,
         }}>←</button>
-        <h1 style={{ fontSize: PIWORK_THEME.typography.h2.fontSize, fontWeight: 700, margin: 0 }}>
-          Детали задачи
+        <h1 style={{ fontSize: PIWORK_THEME.typography.h2.fontSize, fontWeight: 700, margin: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {isMyJob ? 'Моя задача' : 'Детали задачи'}
         </h1>
       </header>
 
       <main style={{ flex: 1, padding: PIWORK_THEME.spacing.lg, overflowY: 'auto' }}>
-        {/* Status */}
-        <div style={{
-          display: 'inline-block', backgroundColor: statusStyle.bg, color: '#fff',
-          padding: `${PIWORK_THEME.spacing.sm}px ${PIWORK_THEME.spacing.md}px`,
-          borderRadius: PIWORK_THEME.radius.md,
-          fontSize: PIWORK_THEME.typography.small.fontSize, fontWeight: 700,
-          marginBottom: PIWORK_THEME.spacing.md, textTransform: 'uppercase',
-        }}>
-          {statusStyle.label}
+        {/* Status badge */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: PIWORK_THEME.spacing.md, flexWrap: 'wrap' }}>
+          <span style={{
+            display: 'inline-block', backgroundColor: statusStyle.bg, color: '#fff',
+            padding: `${PIWORK_THEME.spacing.sm}px ${PIWORK_THEME.spacing.md}px`,
+            borderRadius: PIWORK_THEME.radius.md,
+            fontSize: PIWORK_THEME.typography.small.fontSize, fontWeight: 700, textTransform: 'uppercase',
+          }}>
+            {statusStyle.label}
+          </span>
+          {isMyJob && (
+            <span style={{
+              display: 'inline-block', backgroundColor: `${PIWORK_THEME.colors.primary}20`, color: PIWORK_THEME.colors.primary,
+              padding: `${PIWORK_THEME.spacing.sm}px ${PIWORK_THEME.spacing.md}px`,
+              borderRadius: PIWORK_THEME.radius.md,
+              fontSize: PIWORK_THEME.typography.small.fontSize, fontWeight: 700,
+            }}>
+              Моя задача
+            </span>
+          )}
         </div>
 
-        <h2 style={{ fontSize: 24, fontWeight: 700, margin: 0, marginBottom: PIWORK_THEME.spacing.lg }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, marginBottom: PIWORK_THEME.spacing.lg }}>
           {job.title}
         </h2>
 
-        {/* Budget */}
+        {/* Budget card */}
         <div style={{
           backgroundColor: PIWORK_THEME.colors.bgSecondary,
           border: `2px solid ${PIWORK_THEME.colors.primary}`,
@@ -137,6 +225,23 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
 
+        {/* Hired freelancer info (if in progress) */}
+        {job.status === 'in_progress' && (job as any).hired_freelancer_name && (
+          <div style={{
+            backgroundColor: '#22C55E15',
+            border: `1px solid #22C55E40`,
+            borderRadius: PIWORK_THEME.radius.lg,
+            padding: PIWORK_THEME.spacing.md, marginBottom: PIWORK_THEME.spacing.lg,
+            display: 'flex', alignItems: 'center', gap: 12,
+          }}>
+            <span style={{ fontSize: 24 }}>🤝</span>
+            <div>
+              <p style={{ fontSize: 12, color: '#22C55E', fontWeight: 600, margin: 0 }}>Исполнитель нанят</p>
+              <p style={{ fontSize: 14, fontWeight: 600, margin: 0, marginTop: 2 }}>{(job as any).hired_freelancer_name}</p>
+            </div>
+          </div>
+        )}
+
         {/* Tabs */}
         <div style={{
           display: 'flex', gap: PIWORK_THEME.spacing.md,
@@ -151,7 +256,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
               fontSize: PIWORK_THEME.typography.body.fontSize,
               fontWeight: activeTab === tab ? 700 : 500, cursor: 'pointer',
               borderBottom: activeTab === tab ? `2px solid ${PIWORK_THEME.colors.primary}` : 'none',
-              marginBottom: -1, transition: 'all 200ms ease',
+              marginBottom: -1,
             }}>
               {tab === 'details' ? 'Описание' : `Отклики (${applications.length})`}
             </button>
@@ -160,12 +265,11 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
 
         {/* Details tab */}
         {activeTab === 'details' && (
-          <div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: PIWORK_THEME.spacing.md }}>
             <div style={{
               backgroundColor: PIWORK_THEME.colors.bgSecondary,
               border: `1px solid ${PIWORK_THEME.colors.border}`,
-              borderRadius: PIWORK_THEME.radius.lg,
-              padding: PIWORK_THEME.spacing.lg, marginBottom: PIWORK_THEME.spacing.lg,
+              borderRadius: PIWORK_THEME.radius.lg, padding: PIWORK_THEME.spacing.lg,
             }}>
               <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, marginBottom: PIWORK_THEME.spacing.md }}>Описание</h3>
               <p style={{ fontSize: 14, color: PIWORK_THEME.colors.textSecondary, lineHeight: 1.7, margin: 0 }}>
@@ -177,8 +281,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
               <div style={{
                 backgroundColor: PIWORK_THEME.colors.bgSecondary,
                 border: `1px solid ${PIWORK_THEME.colors.border}`,
-                borderRadius: PIWORK_THEME.radius.lg,
-                padding: PIWORK_THEME.spacing.lg, marginBottom: PIWORK_THEME.spacing.lg,
+                borderRadius: PIWORK_THEME.radius.lg, padding: PIWORK_THEME.spacing.lg,
               }}>
                 <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, marginBottom: PIWORK_THEME.spacing.md }}>Навыки</h3>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -200,9 +303,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
               borderRadius: PIWORK_THEME.radius.lg, padding: PIWORK_THEME.spacing.lg,
             }}>
               <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, marginBottom: PIWORK_THEME.spacing.md }}>Заказчик</h3>
-              <p style={{ fontSize: 14, color: PIWORK_THEME.colors.textSecondary, margin: 0 }}>
-                {job.posted_by_name}
-              </p>
+              <p style={{ fontSize: 14, color: PIWORK_THEME.colors.textSecondary, margin: 0 }}>{job.posted_by_name}</p>
             </div>
           </div>
         )}
@@ -210,6 +311,11 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
         {/* Applications tab */}
         {activeTab === 'applications' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: PIWORK_THEME.spacing.md }}>
+            {hireError && (
+              <div style={{ padding: 12, backgroundColor: '#EF444420', borderRadius: PIWORK_THEME.radius.md, color: '#EF4444', fontSize: 13 }}>
+                {hireError}
+              </div>
+            )}
             {applications.length === 0 ? (
               <div style={{ textAlign: 'center', padding: PIWORK_THEME.spacing.xl, color: PIWORK_THEME.colors.textSecondary }}>
                 Откликов пока нет
@@ -218,20 +324,42 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
               applications.map((app) => (
                 <div key={app.id} style={{
                   backgroundColor: PIWORK_THEME.colors.bgSecondary,
-                  border: `1px solid ${PIWORK_THEME.colors.border}`,
+                  border: `1px solid ${app.status === 'accepted' ? '#22C55E' : PIWORK_THEME.colors.border}`,
                   borderRadius: PIWORK_THEME.radius.lg, padding: PIWORK_THEME.spacing.md,
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                     <span style={{ fontWeight: 600, fontSize: 14 }}>{app.freelancer_name}</span>
-                    <span style={{ fontSize: 12, color: PIWORK_THEME.colors.textSecondary,
-                      textTransform: 'capitalize',
-                      color: app.status === 'accepted' ? '#22C55E' : PIWORK_THEME.colors.textSecondary,
+                    <span style={{
+                      fontSize: 12, fontWeight: 600,
+                      color: app.status === 'accepted' ? '#22C55E' : app.status === 'rejected' ? '#EF4444' : PIWORK_THEME.colors.textSecondary,
                     }}>
-                      {app.status === 'accepted' ? 'Принят' : app.status === 'rejected' ? 'Отклонён' : 'На рассмотрении'}
+                      {app.status === 'accepted' ? '✓ Нанят' : app.status === 'rejected' ? 'Отклонён' : 'На рассмотрении'}
                     </span>
                   </div>
+
                   {app.message && (
-                    <p style={{ fontSize: 13, color: PIWORK_THEME.colors.textSecondary, margin: 0 }}>{app.message}</p>
+                    <p style={{ fontSize: 13, color: PIWORK_THEME.colors.textSecondary, margin: 0, marginBottom: isMyJob && app.status === 'pending' ? 12 : 0, lineHeight: 1.5 }}>
+                      {app.message}
+                    </p>
+                  )}
+
+                  {/* Hire button — only for job owner on pending applications */}
+                  {isMyJob && app.status === 'pending' && job.status === 'open' && (
+                    <button
+                      onClick={() => handleHire(app)}
+                      disabled={hiring === app.id}
+                      style={{
+                        width: '100%', padding: '10px 0',
+                        backgroundColor: PIWORK_THEME.colors.primary,
+                        border: 'none', borderRadius: PIWORK_THEME.radius.md,
+                        color: '#fff', fontWeight: 600, fontSize: 14,
+                        cursor: hiring === app.id ? 'not-allowed' : 'pointer',
+                        opacity: hiring === app.id ? 0.7 : 1,
+                        marginTop: app.message ? 0 : 8,
+                      }}
+                    >
+                      {hiring === app.id ? 'Обработка...' : `Нанять ${app.freelancer_name} (${job.budget}π эскроу)`}
+                    </button>
                   )}
                 </div>
               ))
@@ -248,7 +376,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
             borderRadius: PIWORK_THEME.radius.lg, padding: PIWORK_THEME.spacing.lg,
           }}>
             <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, marginBottom: PIWORK_THEME.spacing.md }}>
-              Ваше сопроводительное письмо
+              Сопроводительное письмо
             </h3>
             <textarea
               value={applyMessage}
@@ -286,27 +414,42 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
         )}
       </main>
 
-      {/* Fixed Action Button */}
-      {!isMyJob && (
-        <div style={{
-          position: 'fixed', bottom: 80, left: PIWORK_THEME.spacing.md, right: PIWORK_THEME.spacing.md,
-          backgroundColor: PIWORK_THEME.colors.bgPrimary,
-          paddingTop: PIWORK_THEME.spacing.md,
-          borderTop: `1px solid ${PIWORK_THEME.colors.border}`,
-        }}>
-          {applySuccess ? (
+      {/* Fixed action bar at bottom */}
+      <div style={{
+        position: 'fixed', bottom: 64, left: 0, right: 0,
+        backgroundColor: PIWORK_THEME.colors.bgPrimary,
+        borderTop: `1px solid ${PIWORK_THEME.colors.border}`,
+        padding: `${PIWORK_THEME.spacing.md}px`,
+      }}>
+        {isMyJob ? (
+          // Job owner actions
+          job.status === 'in_progress' ? (
+            <PiworkButton variant="primary" fullWidth onClick={handleComplete} disabled={completing}>
+              {completing ? 'Завершаем...' : '✓ Завершить задачу и выплатить'}
+            </PiworkButton>
+          ) : job.status === 'completed' ? (
+            <div style={{ textAlign: 'center', color: '#22C55E', fontWeight: 600, padding: 12 }}>
+              ✓ Задача завершена
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', color: PIWORK_THEME.colors.textSecondary, fontSize: 13, padding: 8 }}>
+              Выберите исполнителя во вкладке «Отклики»
+            </div>
+          )
+        ) : (
+          // Freelancer actions
+          applySuccess || myApplication?.status === 'accepted' ? (
             <div style={{
-              textAlign: 'center', padding: PIWORK_THEME.spacing.md,
-              backgroundColor: '#22C55E20', borderRadius: PIWORK_THEME.radius.md,
-              color: '#22C55E', fontWeight: 600,
+              textAlign: 'center', padding: 12,
+              backgroundColor: myApplication?.status === 'accepted' ? '#22C55E20' : '#8B5CF620',
+              borderRadius: PIWORK_THEME.radius.md,
+              color: myApplication?.status === 'accepted' ? '#22C55E' : PIWORK_THEME.colors.primary,
+              fontWeight: 600, fontSize: 14,
             }}>
-              ✓ Отклик отправлен!
+              {myApplication?.status === 'accepted' ? '🎉 Вас выбрали исполнителем!' : '✓ Отклик отправлен'}
             </div>
           ) : alreadyApplied ? (
-            <div style={{
-              textAlign: 'center', padding: PIWORK_THEME.spacing.md,
-              color: PIWORK_THEME.colors.textSecondary, fontSize: 14,
-            }}>
+            <div style={{ textAlign: 'center', padding: 12, color: PIWORK_THEME.colors.textSecondary, fontSize: 14 }}>
               Вы уже откликнулись на эту задачу
             </div>
           ) : job.status === 'open' ? (
@@ -314,12 +457,12 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
               Откликнуться ({job.apply_cost || 1} connect)
             </PiworkButton>
           ) : (
-            <PiworkButton variant="primary" disabled fullWidth>
-              Задача закрыта
-            </PiworkButton>
-          )}
-        </div>
-      )}
+            <div style={{ textAlign: 'center', padding: 12, color: PIWORK_THEME.colors.textSecondary, fontSize: 14 }}>
+              Задача {job.status === 'in_progress' ? 'в работе' : 'завершена'}
+            </div>
+          )
+        )}
+      </div>
 
       <BottomNavigation />
     </div>
