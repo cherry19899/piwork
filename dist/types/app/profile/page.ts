@@ -1,4 +1,4 @@
-// File: C:\Users\denvi\Downloads\piwork-vb_xwZYpoHbg1L\app\profile\page.tsx
+// File: /Users/mac/Projects/cherry19899/piwork/app/profile/page.tsx
 import * as entry from '../../../../app/profile/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

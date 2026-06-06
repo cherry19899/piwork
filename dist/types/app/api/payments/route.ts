@@ -1,4 +1,4 @@
-// File: C:\Users\denvi\Downloads\piwork-vb_xwZYpoHbg1L\app\api\payments\route.ts
+// File: /Users/mac/Projects/cherry19899/piwork/app/api/payments/route.ts
 import * as entry from '../../../../../app/api/payments/route.js'
 import type { NextRequest } from 'next/server.js'
 

@@ -1,4 +1,4 @@
-// File: C:\Users\denvi\Downloads\piwork-vb_xwZYpoHbg1L\app\api\payments\validate-escrow\route.ts
+// File: /Users/mac/Projects/cherry19899/piwork/app/api/payments/validate-escrow/route.ts
 import * as entry from '../../../../../../app/api/payments/validate-escrow/route.js'
 import type { NextRequest } from 'next/server.js'
 

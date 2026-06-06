@@ -260,17 +260,17 @@ export class PiPaymentService {
     paymentId: string,
     metadata?: Record<string, any>
   ): Promise<any> {
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://workpro-api.onrender.com';
+    const userId = typeof window !== 'undefined'
+      ? JSON.parse(localStorage.getItem('piUser') || '{}')?.uid || ''
+      : '';
     try {
-      const response = await fetch('/api/payments/approve', {
+      const response = await fetch(`${API_BASE}/api/payments/${paymentId}/approve`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentId, metadata }),
+        headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
+        body: JSON.stringify({ metadata }),
       });
-
-      if (!response.ok) {
-        throw new Error(`Payment approval failed: ${response.statusText}`);
-      }
-
+      if (!response.ok) throw new Error(`Payment approval failed: ${response.statusText}`);
       return await response.json();
     } catch (error) {
       console.error('[v0] Server approval error:', error);
@@ -283,39 +283,21 @@ export class PiPaymentService {
     txid: string,
     metadata?: Record<string, any>
   ): Promise<any> {
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://workpro-api.onrender.com';
+    const userId = typeof window !== 'undefined'
+      ? JSON.parse(localStorage.getItem('piUser') || '{}')?.uid || ''
+      : '';
     try {
-      // Validate escrow before completion
-      const escrowValid = await this.validateEscrow(paymentId);
-      if (!escrowValid) {
-        throw new Error('Escrow validation failed');
-      }
-
-      const response = await fetch('/api/payments/complete', {
+      const response = await fetch(`${API_BASE}/api/payments/${paymentId}/complete`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentId, txid, metadata }),
+        headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
+        body: JSON.stringify({ txid, metadata }),
       });
-
-      if (!response.ok) {
-        throw new Error(`Payment completion failed: ${response.statusText}`);
-      }
-
+      if (!response.ok) throw new Error(`Payment completion failed: ${response.statusText}`);
       return await response.json();
     } catch (error) {
       console.error('[v0] Server completion error:', error);
       throw error;
-    }
-  }
-
-  private static async validateEscrow(paymentId: string): Promise<boolean> {
-    try {
-      const response = await fetch(`/api/payments/validate-escrow?paymentId=${paymentId}`);
-      if (!response.ok) return false;
-      const data = await response.json();
-      return data.valid === true;
-    } catch (error) {
-      console.error('[v0] Escrow validation error:', error);
-      return false;
     }
   }
 

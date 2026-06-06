@@ -99,7 +99,7 @@
         "transform": "lodash/{{member}}"
       }
     },
-    "outputFileTracingRoot": "C:\\Users\\denvi\\Downloads\\piwork-vb_xwZYpoHbg1L",
+    "outputFileTracingRoot": "/Users/mac/Projects/cherry19899/piwork",
     "experimental": {
       "useSkewCookie": false,
       "cacheLife": {
@@ -158,7 +158,7 @@
       "middlewarePrefetch": "flexible",
       "optimisticClientCache": true,
       "manualClientBasePath": false,
-      "cpus": 7,
+      "cpus": 11,
       "memoryBasedWorkersCount": false,
       "imgOptConcurrency": null,
       "imgOptTimeoutInSeconds": 7,
@@ -289,32 +289,32 @@
     "bundlePagesRouterDependencies": false,
     "configFileName": "next.config.mjs",
     "turbopack": {
-      "root": "C:\\Users\\denvi\\Downloads\\piwork-vb_xwZYpoHbg1L"
+      "root": "/Users/mac/Projects/cherry19899/piwork"
     }
   },
-  "appDir": "C:\\Users\\denvi\\Downloads\\piwork-vb_xwZYpoHbg1L",
+  "appDir": "/Users/mac/Projects/cherry19899/piwork",
   "relativeAppDir": "",
   "files": [
-    "dist\\routes-manifest.json",
-    "dist\\server\\pages-manifest.json",
-    "dist\\build-manifest.json",
-    "dist\\prerender-manifest.json",
-    "dist\\server\\functions-config-manifest.json",
-    "dist\\server\\middleware-manifest.json",
-    "dist\\server\\middleware-build-manifest.js",
-    "dist\\server\\middleware-react-loadable-manifest.js",
-    "dist\\react-loadable-manifest.json",
-    "dist\\server\\app-paths-manifest.json",
-    "dist\\app-path-routes-manifest.json",
-    "dist\\app-build-manifest.json",
-    "dist\\server\\server-reference-manifest.js",
-    "dist\\server\\server-reference-manifest.json",
-    "dist\\BUILD_ID",
-    "dist\\server\\next-font-manifest.js",
-    "dist\\server\\next-font-manifest.json",
-    "dist\\required-server-files.json"
+    "dist/routes-manifest.json",
+    "dist/server/pages-manifest.json",
+    "dist/build-manifest.json",
+    "dist/prerender-manifest.json",
+    "dist/server/functions-config-manifest.json",
+    "dist/server/middleware-manifest.json",
+    "dist/server/middleware-build-manifest.js",
+    "dist/server/middleware-react-loadable-manifest.js",
+    "dist/react-loadable-manifest.json",
+    "dist/server/app-paths-manifest.json",
+    "dist/app-path-routes-manifest.json",
+    "dist/app-build-manifest.json",
+    "dist/server/server-reference-manifest.js",
+    "dist/server/server-reference-manifest.json",
+    "dist/BUILD_ID",
+    "dist/server/next-font-manifest.js",
+    "dist/server/next-font-manifest.json",
+    "dist/required-server-files.json"
   ],
   "ignore": [
-    "node_modules\\next\\dist\\compiled\\@ampproject\\toolbox-optimizer\\**\\*"
+    "node_modules/next/dist/compiled/@ampproject/toolbox-optimizer/**/*"
   ]
 }

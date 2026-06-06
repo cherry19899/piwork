@@ -5,440 +5,281 @@ import { useRouter } from 'next/navigation';
 import { PIWORK_THEME } from '@/lib/piwork-design-tokens';
 import { BottomNavigation } from '@/components/bottom-navigation';
 import { PiworkButton } from '@/components/piwork-button';
+import { createJob } from '@/lib/workpro-api';
 
-const steps = ['Details', 'Budget', 'Confirm'];
+const steps = ['Детали', 'Бюджет', 'Подтверждение'];
+const categoryOptions = ['Design', 'Writing', 'Data', 'Audio', 'Video', 'Other'];
 
 export default function CreateTaskPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    category: 'design',
+    category: 'Design',
+    skills: '',
     budget: '',
-    deadline: '7',
+    deadline: '',
   });
 
+  const update = (field: string, value: string) =>
+    setFormData((prev) => ({ ...prev, [field]: value }));
+
+  const validateStep = () => {
+    if (currentStep === 1) {
+      if (!formData.title.trim()) return 'Введите название задачи';
+      if (formData.title.length < 5) return 'Название должно быть не менее 5 символов';
+      if (!formData.description.trim()) return 'Введите описание';
+      if (formData.description.length < 20) return 'Описание должно быть не менее 20 символов';
+    }
+    if (currentStep === 2) {
+      if (!formData.budget) return 'Укажите бюджет';
+      if (parseFloat(formData.budget) < 1) return 'Минимальный бюджет — 1π';
+    }
+    return null;
+  };
+
   const handleNext = () => {
-    if (currentStep < 3) {
-      setCurrentStep(currentStep + 1);
-    }
+    const err = validateStep();
+    if (err) { setError(err); return; }
+    setError(null);
+    setCurrentStep((s) => Math.min(s + 1, 3));
   };
 
-  const handlePrevious = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const userId = JSON.parse(localStorage.getItem('piUser') || '{}')?.uid;
+      if (!userId) throw new Error('Войдите в систему');
 
-  const handleSubmit = async (e?: React.FormEvent) => {
-  if (e) e.preventDefault();
-    
-    if (currentStep === 3) {
-      // Submit task
+      await createJob({
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        category: formData.category,
+        budget: parseFloat(formData.budget),
+        skills: formData.skills.trim() || undefined,
+        deadline: formData.deadline || undefined,
+      });
+
       router.push('/feed');
+    } catch (e: any) {
+      setError(e.message || 'Ошибка при создании задачи');
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  const inputStyle = {
+    width: '100%', backgroundColor: PIWORK_THEME.colors.bgPrimary,
+    border: `1px solid ${PIWORK_THEME.colors.border}`,
+    borderRadius: PIWORK_THEME.radius.md, padding: PIWORK_THEME.spacing.md,
+    color: PIWORK_THEME.colors.textPrimary, fontSize: 14,
+    boxSizing: 'border-box' as const, outline: 'none',
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: '100vh',
-        backgroundColor: PIWORK_THEME.colors.bgPrimary,
-        color: PIWORK_THEME.colors.textPrimary,
-        paddingBottom: 100,
-      }}
-    >
-      {/* Header with Progress */}
-      <header
-        style={{
-          backgroundColor: PIWORK_THEME.colors.bgSecondary,
-          borderBottom: `1px solid ${PIWORK_THEME.colors.border}`,
-          padding: `${PIWORK_THEME.spacing.md}px`,
-          paddingBottom: PIWORK_THEME.spacing.lg,
-        }}
-      >
+    <div style={{
+      display: 'flex', flexDirection: 'column', minHeight: '100vh',
+      backgroundColor: PIWORK_THEME.colors.bgPrimary, color: PIWORK_THEME.colors.textPrimary, paddingBottom: 100,
+    }}>
+      <header style={{
+        backgroundColor: PIWORK_THEME.colors.bgSecondary,
+        borderBottom: `1px solid ${PIWORK_THEME.colors.border}`,
+        padding: `${PIWORK_THEME.spacing.md}px`,
+        paddingBottom: PIWORK_THEME.spacing.lg,
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: PIWORK_THEME.spacing.md }}>
-          <button
-            onClick={() => router.back()}
-            style={{
-              backgroundColor: 'transparent',
-              border: 'none',
-              color: PIWORK_THEME.colors.primary,
-              fontSize: 24,
-              cursor: 'pointer',
-              padding: 0,
-              marginRight: PIWORK_THEME.spacing.md,
-            }}
-          >
-            ←
-          </button>
-          <h1
-            style={{
-              fontSize: PIWORK_THEME.typography.h2.fontSize,
-              fontWeight: 700,
-              margin: 0,
-            }}
-          >
+          <button onClick={() => currentStep > 1 ? setCurrentStep(s => s - 1) : router.back()} style={{
+            backgroundColor: 'transparent', border: 'none',
+            color: PIWORK_THEME.colors.primary, fontSize: 24, cursor: 'pointer', padding: 0,
+            marginRight: PIWORK_THEME.spacing.md,
+          }}>←</button>
+          <h1 style={{ fontSize: PIWORK_THEME.typography.h2.fontSize, fontWeight: 700, margin: 0 }}>
             Создать задачу
           </h1>
         </div>
 
-        {/* Progress Indicator */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: PIWORK_THEME.spacing.md }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: PIWORK_THEME.spacing.sm }}>
           {steps.map((step, index) => (
             <div key={step} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-              <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: '50%',
-                  backgroundColor:
-                    index + 1 <= currentStep ? PIWORK_THEME.colors.primary : PIWORK_THEME.colors.bgPrimary,
-                  border:
-                    index + 1 <= currentStep
-                      ? 'none'
-                      : `2px solid ${PIWORK_THEME.colors.border}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: index + 1 <= currentStep ? PIWORK_THEME.colors.bgPrimary : PIWORK_THEME.colors.textSecondary,
-                  fontSize: 14,
-                  fontWeight: 700,
-                }}
-              >
-                {index + 1}
+              <div style={{
+                width: 28, height: 28, borderRadius: '50%',
+                backgroundColor: index + 1 <= currentStep ? PIWORK_THEME.colors.primary : PIWORK_THEME.colors.bgPrimary,
+                border: `2px solid ${index + 1 <= currentStep ? PIWORK_THEME.colors.primary : PIWORK_THEME.colors.border}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 12, fontWeight: 700,
+                color: index + 1 <= currentStep ? '#fff' : PIWORK_THEME.colors.textSecondary,
+              }}>
+                {index + 1 < currentStep ? '✓' : index + 1}
               </div>
-              <span
-                style={{
-                  fontSize: PIWORK_THEME.typography.small.fontSize,
-                  color:
-                    index + 1 <= currentStep
-                      ? PIWORK_THEME.colors.primary
-                      : PIWORK_THEME.colors.textSecondary,
-                  marginLeft: 8,
-                  fontWeight: 600,
-                }}
-              >
+              <span style={{
+                fontSize: 12, marginLeft: 6,
+                color: index + 1 === currentStep ? PIWORK_THEME.colors.textPrimary : PIWORK_THEME.colors.textSecondary,
+                fontWeight: index + 1 === currentStep ? 600 : 400,
+              }}>
                 {step}
               </span>
               {index < steps.length - 1 && (
-                <div
-                  style={{
-                    flex: 1,
-                    height: 2,
-                    backgroundColor:
-                      index + 1 < currentStep ? PIWORK_THEME.colors.primary : PIWORK_THEME.colors.border,
-                    margin: `0 ${PIWORK_THEME.spacing.sm}px`,
-                  }}
-                />
+                <div style={{
+                  flex: 1, height: 2, marginLeft: 8,
+                  backgroundColor: index + 1 < currentStep ? PIWORK_THEME.colors.primary : PIWORK_THEME.colors.border,
+                }} />
               )}
             </div>
           ))}
         </div>
       </header>
 
-      {/* Main Content */}
-      <main
-        style={{
-          flex: 1,
-          padding: PIWORK_THEME.spacing.lg,
-          overflowY: 'auto',
-        }}
-      >
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column' }}>
-          {/* Step 1: Details */}
-          {currentStep === 1 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: PIWORK_THEME.spacing.lg }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>
-                  Название задачи
-                </label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Что нужно сделать?"
-                  style={{
-                    width: '100%',
-                    height: 56,
-                    padding: `${PIWORK_THEME.spacing.md}px`,
-                    backgroundColor: PIWORK_THEME.colors.bgSecondary,
-                    border: `1px solid ${PIWORK_THEME.colors.border}`,
-                    borderRadius: PIWORK_THEME.radius.lg,
-                    color: PIWORK_THEME.colors.textPrimary,
-                    fontSize: PIWORK_THEME.typography.body.fontSize,
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>
-                  Описание
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Подробно опиши что нужно сделать..."
-                  style={{
-                    width: '100%',
-                    height: 120,
-                    padding: `${PIWORK_THEME.spacing.md}px`,
-                    backgroundColor: PIWORK_THEME.colors.bgSecondary,
-                    border: `1px solid ${PIWORK_THEME.colors.border}`,
-                    borderRadius: PIWORK_THEME.radius.lg,
-                    color: PIWORK_THEME.colors.textPrimary,
-                    fontSize: PIWORK_THEME.typography.body.fontSize,
-                    boxSizing: 'border-box',
-                    fontFamily: 'inherit',
-                    resize: 'none',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>
-                  Категория
-                </label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  style={{
-                    width: '100%',
-                    height: 48,
-                    padding: `${PIWORK_THEME.spacing.md}px`,
-                    backgroundColor: PIWORK_THEME.colors.bgSecondary,
-                    border: `1px solid ${PIWORK_THEME.colors.border}`,
-                    borderRadius: PIWORK_THEME.radius.lg,
-                    color: PIWORK_THEME.colors.textPrimary,
-                    fontSize: PIWORK_THEME.typography.body.fontSize,
-                  }}
-                >
-                  <option value="design">Дизайн</option>
-                  <option value="writing">Писательство</option>
-                  <option value="data">Ввод данных</option>
-                  <option value="audio">Транскрипция</option>
-                  <option value="video">Видео</option>
-                </select>
-              </div>
-            </div>
-          )}
-
-          {/* Step 2: Budget */}
-          {currentStep === 2 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: PIWORK_THEME.spacing.lg }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>
-                  Бюджет
-                </label>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    backgroundColor: PIWORK_THEME.colors.bgSecondary,
-                    border: `1px solid ${PIWORK_THEME.colors.border}`,
-                    borderRadius: PIWORK_THEME.radius.lg,
-                    paddingRight: PIWORK_THEME.spacing.md,
-                  }}
-                >
-                  <input
-                    type="number"
-                    value={formData.budget}
-                    onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-                    placeholder="50"
-                    style={{
-                      flex: 1,
-                      padding: `${PIWORK_THEME.spacing.md}px`,
-                      backgroundColor: 'transparent',
-                      border: 'none',
-                      color: PIWORK_THEME.colors.textPrimary,
-                      fontSize: PIWORK_THEME.typography.body.fontSize,
-                      outline: 'none',
-                    }}
-                  />
-                  <span style={{ fontWeight: 700, fontSize: 18, color: PIWORK_THEME.colors.primary }}>
-                    π
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>
-                  Срок выполнения
-                </label>
-                <select
-                  value={formData.deadline}
-                  onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-                  style={{
-                    width: '100%',
-                    height: 48,
-                    padding: `${PIWORK_THEME.spacing.md}px`,
-                    backgroundColor: PIWORK_THEME.colors.bgSecondary,
-                    border: `1px solid ${PIWORK_THEME.colors.border}`,
-                    borderRadius: PIWORK_THEME.radius.lg,
-                    color: PIWORK_THEME.colors.textPrimary,
-                    fontSize: PIWORK_THEME.typography.body.fontSize,
-                  }}
-                >
-                  <option value="1">1 день</option>
-                  <option value="3">3 дня</option>
-                  <option value="7">7 дней</option>
-                  <option value="14">14 дней</option>
-                </select>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Confirm */}
-          {currentStep === 3 && (
-            <div
-              style={{
-                backgroundColor: PIWORK_THEME.colors.bgSecondary,
-                border: `1px solid ${PIWORK_THEME.colors.border}`,
-                borderRadius: PIWORK_THEME.radius.lg,
-                padding: PIWORK_THEME.spacing.lg,
-              }}
-            >
-              <h2
-                style={{
-                  fontSize: PIWORK_THEME.typography.h2.fontSize,
-                  fontWeight: 600,
-                  margin: 0,
-                  marginBottom: PIWORK_THEME.spacing.lg,
-                }}
-              >
-                Проверь информацию
-              </h2>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: PIWORK_THEME.spacing.lg }}>
-                <div>
-                  <p
-                    style={{
-                      fontSize: PIWORK_THEME.typography.small.fontSize,
-                      color: PIWORK_THEME.colors.textSecondary,
-                      margin: 0,
-                      marginBottom: 4,
-                    }}
-                  >
-                    Название
-                  </p>
-                  <p style={{ fontSize: PIWORK_THEME.typography.body.fontSize, fontWeight: 600, margin: 0 }}>
-                    {formData.title || 'Не указано'}
-                  </p>
-                </div>
-
-                <div>
-                  <p
-                    style={{
-                      fontSize: PIWORK_THEME.typography.small.fontSize,
-                      color: PIWORK_THEME.colors.textSecondary,
-                      margin: 0,
-                      marginBottom: 4,
-                    }}
-                  >
-                    Описание
-                  </p>
-                  <p style={{ fontSize: PIWORK_THEME.typography.body.fontSize, margin: 0 }}>
-                    {formData.description || 'Не указано'}
-                  </p>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: PIWORK_THEME.spacing.lg }}>
-                  <div>
-                    <p
-                      style={{
-                        fontSize: PIWORK_THEME.typography.small.fontSize,
-                        color: PIWORK_THEME.colors.textSecondary,
-                        margin: 0,
-                        marginBottom: 4,
-                      }}
-                    >
-                      Бюджет
-                    </p>
-                    <p
-                      style={{
-                        fontSize: PIWORK_THEME.typography.h2.fontSize,
-                        fontWeight: 700,
-                        color: PIWORK_THEME.colors.primary,
-                        margin: 0,
-                      }}
-                    >
-                      {formData.budget}π
-                    </p>
-                  </div>
-
-                  <div>
-                    <p
-                      style={{
-                        fontSize: PIWORK_THEME.typography.small.fontSize,
-                        color: PIWORK_THEME.colors.textSecondary,
-                        margin: 0,
-                        marginBottom: 4,
-                      }}
-                    >
-                      Срок
-                    </p>
-                    <p style={{ fontSize: PIWORK_THEME.typography.body.fontSize, fontWeight: 600, margin: 0 }}>
-                      {formData.deadline} дней
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </form>
-      </main>
-
-      {/* Fixed Bottom Buttons */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 80,
-          left: PIWORK_THEME.spacing.md,
-          right: PIWORK_THEME.spacing.md,
-          backgroundColor: PIWORK_THEME.colors.bgPrimary,
-          display: 'flex',
-          gap: PIWORK_THEME.spacing.md,
-          paddingTop: PIWORK_THEME.spacing.md,
-          borderTop: `1px solid ${PIWORK_THEME.colors.border}`,
-        }}
-      >
-        {currentStep > 1 && (
-          <button
-            onClick={handlePrevious}
-            style={{
-              flex: 1,
-              height: 48,
-              backgroundColor: 'transparent',
-              border: `2px solid ${PIWORK_THEME.colors.primary}`,
-              color: PIWORK_THEME.colors.primary,
-              borderRadius: PIWORK_THEME.radius.lg,
-              fontSize: PIWORK_THEME.typography.body.fontSize,
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 200ms ease',
-              textTransform: 'uppercase',
-            }}
-          >
-            Назад
-          </button>
+      <main style={{ flex: 1, padding: PIWORK_THEME.spacing.lg, overflowY: 'auto' }}>
+        {error && (
+          <div style={{
+            backgroundColor: '#EF444420', border: '1px solid #EF4444',
+            borderRadius: PIWORK_THEME.radius.md, padding: PIWORK_THEME.spacing.md,
+            color: '#EF4444', fontSize: 14, marginBottom: PIWORK_THEME.spacing.md,
+          }}>
+            {error}
+          </div>
         )}
 
-        <div style={{ flex: 1 }}>
-          <PiworkButton
-            variant="primary"
-            fullWidth={true}
-            onClick={currentStep < 3 ? handleNext : handleSubmit}
-          >
-            {currentStep < 3 ? 'Далее' : 'Опубликовать'}
+        {currentStep === 1 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: PIWORK_THEME.spacing.lg }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: PIWORK_THEME.colors.textSecondary, display: 'block', marginBottom: 8 }}>
+                Название задачи *
+              </label>
+              <input type="text" value={formData.title} onChange={(e) => update('title', e.target.value)}
+                placeholder="Например: Нужен дизайн логотипа" style={inputStyle} maxLength={100} />
+              <span style={{ fontSize: 11, color: PIWORK_THEME.colors.textSecondary }}>{formData.title.length}/100</span>
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: PIWORK_THEME.colors.textSecondary, display: 'block', marginBottom: 8 }}>
+                Описание *
+              </label>
+              <textarea value={formData.description} onChange={(e) => update('description', e.target.value)}
+                placeholder="Подробно опишите что нужно сделать..." rows={5}
+                style={{ ...inputStyle, resize: 'vertical' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: PIWORK_THEME.colors.textSecondary, display: 'block', marginBottom: 8 }}>
+                Категория
+              </label>
+              <select value={formData.category} onChange={(e) => update('category', e.target.value)} style={inputStyle}>
+                {categoryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: PIWORK_THEME.colors.textSecondary, display: 'block', marginBottom: 8 }}>
+                Навыки (через запятую)
+              </label>
+              <input type="text" value={formData.skills} onChange={(e) => update('skills', e.target.value)}
+                placeholder="Figma, Illustrator, Photoshop" style={inputStyle} />
+            </div>
+          </div>
+        )}
+
+        {currentStep === 2 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: PIWORK_THEME.spacing.lg }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: PIWORK_THEME.colors.textSecondary, display: 'block', marginBottom: 8 }}>
+                Бюджет (в Pi) *
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input type="number" value={formData.budget} onChange={(e) => update('budget', e.target.value)}
+                  placeholder="0" min="1" step="0.5" style={{ ...inputStyle, paddingRight: 40 }} />
+                <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: PIWORK_THEME.colors.primary, fontWeight: 700, fontSize: 18 }}>π</span>
+              </div>
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: PIWORK_THEME.colors.textSecondary, display: 'block', marginBottom: 8 }}>
+                Быстрый выбор
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {[10, 25, 50, 100, 250, 500].map((amount) => (
+                  <button key={amount} onClick={() => update('budget', String(amount))} style={{
+                    padding: '8px 16px',
+                    backgroundColor: formData.budget === String(amount) ? PIWORK_THEME.colors.primary : PIWORK_THEME.colors.bgSecondary,
+                    color: formData.budget === String(amount) ? '#fff' : PIWORK_THEME.colors.textPrimary,
+                    border: `1px solid ${formData.budget === String(amount) ? PIWORK_THEME.colors.primary : PIWORK_THEME.colors.border}`,
+                    borderRadius: PIWORK_THEME.radius.md, cursor: 'pointer', fontSize: 14, fontWeight: 600,
+                  }}>
+                    {amount}π
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: PIWORK_THEME.colors.textSecondary, display: 'block', marginBottom: 8 }}>
+                Дедлайн (необязательно)
+              </label>
+              <input type="date" value={formData.deadline} onChange={(e) => update('deadline', e.target.value)}
+                min={new Date().toISOString().split('T')[0]} style={inputStyle} />
+            </div>
+            {formData.budget && (
+              <div style={{ backgroundColor: PIWORK_THEME.colors.bgSecondary, border: `1px solid ${PIWORK_THEME.colors.border}`, borderRadius: PIWORK_THEME.radius.lg, padding: PIWORK_THEME.spacing.md }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ color: PIWORK_THEME.colors.textSecondary, fontSize: 14 }}>Сумма</span>
+                  <span style={{ fontWeight: 600 }}>{formData.budget}π</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ color: PIWORK_THEME.colors.textSecondary, fontSize: 14 }}>Комиссия (2.5%)</span>
+                  <span style={{ color: PIWORK_THEME.colors.textSecondary }}>{(parseFloat(formData.budget) * 0.025).toFixed(2)}π</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: `1px solid ${PIWORK_THEME.colors.border}`, paddingTop: 8 }}>
+                  <span style={{ fontWeight: 700 }}>Фрилансер получит</span>
+                  <span style={{ fontWeight: 700, color: PIWORK_THEME.colors.primary }}>{(parseFloat(formData.budget) * 0.975).toFixed(2)}π</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {currentStep === 3 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: PIWORK_THEME.spacing.md }}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, marginBottom: PIWORK_THEME.spacing.md }}>Проверьте данные</h2>
+            {[
+              { label: 'Название', value: formData.title },
+              { label: 'Категория', value: formData.category },
+              { label: 'Бюджет', value: `${formData.budget}π` },
+              { label: 'Навыки', value: formData.skills || '—' },
+              { label: 'Дедлайн', value: formData.deadline || '—' },
+            ].map(({ label, value }) => (
+              <div key={label} style={{
+                backgroundColor: PIWORK_THEME.colors.bgSecondary, border: `1px solid ${PIWORK_THEME.colors.border}`,
+                borderRadius: PIWORK_THEME.radius.md, padding: PIWORK_THEME.spacing.md,
+                display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+              }}>
+                <span style={{ fontSize: 13, color: PIWORK_THEME.colors.textSecondary }}>{label}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, textAlign: 'right', maxWidth: '60%' }}>{value}</span>
+              </div>
+            ))}
+            <div style={{ backgroundColor: PIWORK_THEME.colors.bgSecondary, border: `1px solid ${PIWORK_THEME.colors.border}`, borderRadius: PIWORK_THEME.radius.md, padding: PIWORK_THEME.spacing.md }}>
+              <span style={{ fontSize: 13, color: PIWORK_THEME.colors.textSecondary, display: 'block', marginBottom: 8 }}>Описание</span>
+              <p style={{ fontSize: 14, margin: 0, lineHeight: 1.6 }}>{formData.description}</p>
+            </div>
+          </div>
+        )}
+      </main>
+
+      <div style={{
+        position: 'fixed', bottom: 80, left: PIWORK_THEME.spacing.md, right: PIWORK_THEME.spacing.md,
+        backgroundColor: PIWORK_THEME.colors.bgPrimary,
+        borderTop: `1px solid ${PIWORK_THEME.colors.border}`,
+        paddingTop: PIWORK_THEME.spacing.md,
+      }}>
+        {currentStep === 3 ? (
+          <PiworkButton variant="primary" fullWidth onClick={handleSubmit} isLoading={isSubmitting} disabled={isSubmitting}>
+            {isSubmitting ? 'Публикуем...' : 'Опубликовать задачу'}
           </PiworkButton>
-        </div>
+        ) : (
+          <PiworkButton variant="primary" fullWidth onClick={handleNext}>
+            Далее →
+          </PiworkButton>
+        )}
       </div>
 
-      {/* Bottom Navigation */}
       <BottomNavigation />
     </div>
   );

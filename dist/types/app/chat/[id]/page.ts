@@ -1,4 +1,4 @@
-// File: C:\Users\denvi\Downloads\piwork-vb_xwZYpoHbg1L\app\chat\[id]\page.tsx
+// File: /Users/mac/Projects/cherry19899/piwork/app/chat/[id]/page.tsx
 import * as entry from '../../../../../app/chat/[id]/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

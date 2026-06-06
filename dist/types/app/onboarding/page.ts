@@ -1,4 +1,4 @@
-// File: C:\Users\denvi\Downloads\piwork-vb_xwZYpoHbg1L\app\onboarding\page.tsx
+// File: /Users/mac/Projects/cherry19899/piwork/app/onboarding/page.tsx
 import * as entry from '../../../../app/onboarding/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

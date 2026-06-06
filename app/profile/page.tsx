@@ -1,474 +1,205 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { PIWORK_THEME } from '@/lib/piwork-design-tokens';
 import { BottomNavigation } from '@/components/bottom-navigation';
-import { PiworkButton } from '@/components/piwork-button';
-import { Reviews } from '@/components/reviews';
-
-type TabType = 'about' | 'portfolio' | 'reviews';
+import { getUser, updateUser, getConnectsBalance } from '@/lib/workpro-api';
 
 export default function ProfilePage() {
-  const [activeTab, setActiveTab] = useState<TabType>('about');
-  const [isEditing, setIsEditing] = useState(false);
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [connects, setConnects] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editData, setEditData] = useState({ bio: '', skills: '', availability: 'available' });
 
-  const portfolioItems = [
-    { id: 1, title: 'E-commerce Store Design', image: '🖼️' },
-    { id: 2, title: 'Mobile App UI Kit', image: '📱' },
-  ];
+  const currentUserId = typeof window !== 'undefined'
+    ? JSON.parse(localStorage.getItem('piUser') || '{}')?.uid || null
+    : null;
 
-  const reviewsData = [
-    {
-      id: 1,
-      author: 'TechStore',
-      avatar: '🏢',
-      rating: 5,
-      text: 'Excellent work! Very professional and fast delivery. Highly recommended for all design projects.',
-      date: '2024-01-15',
-      hasPhotos: true,
-    },
-    {
-      id: 2,
-      author: 'CreativeTeam',
-      avatar: '🎨',
-      rating: 5,
-      text: 'Outstanding design quality. The attention to detail was amazing. Will work together again!',
-      date: '2024-01-10',
-      hasPhotos: true,
-    },
-    {
-      id: 3,
-      author: 'Digital Co',
-      avatar: '💻',
-      rating: 5,
-      text: 'Perfect execution. Great communication throughout the project.',
-      date: '2024-01-05',
-      hasPhotos: false,
-    },
-    {
-      id: 4,
-      author: 'Brand Studio',
-      avatar: '✨',
-      rating: 4,
-      text: 'Good work overall. Minor revisions needed but very responsive to feedback.',
-      date: '2023-12-28',
-      hasPhotos: true,
-    },
-    {
-      id: 5,
-      author: 'Web Agency',
-      avatar: '🌐',
-      rating: 5,
-      text: 'Amazing designer! Delivered ahead of schedule with exceptional quality.',
-      date: '2023-12-20',
-      hasPhotos: false,
-    },
-    {
-      id: 6,
-      author: 'Marketing Pro',
-      avatar: '📊',
-      rating: 5,
-      text: 'Best designer I have worked with. Highly professional and creative.',
-      date: '2023-12-15',
-      hasPhotos: true,
-    },
-  ];
+  useEffect(() => {
+    if (!currentUserId) { router.push('/login'); return; }
+    Promise.all([
+      getUser(currentUserId),
+      getConnectsBalance(),
+    ]).then(([userData, { balance }]) => {
+      setUser(userData);
+      setConnects(balance);
+      setEditData({ bio: userData.bio || '', skills: userData.skills || '', availability: userData.availability || 'available' });
+    }).catch(() => {}).finally(() => setIsLoading(false));
+  }, [currentUserId]);
 
-  const hasMore = false;
+  const handleSave = async () => {
+    if (!currentUserId) return;
+    setSaving(true);
+    try {
+      const updated = await updateUser(currentUserId, editData);
+      setUser((prev: any) => ({ ...prev, ...updated }));
+      setEditing(false);
+    } catch (_) {} finally { setSaving(false); }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('piUser');
+    router.push('/login');
+  };
+
+  const inputStyle = {
+    width: '100%', backgroundColor: PIWORK_THEME.colors.bgPrimary,
+    border: `1px solid ${PIWORK_THEME.colors.border}`,
+    borderRadius: PIWORK_THEME.radius.md, padding: PIWORK_THEME.spacing.md,
+    color: PIWORK_THEME.colors.textPrimary, fontSize: 14,
+    boxSizing: 'border-box' as const, outline: 'none',
+  };
+
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: PIWORK_THEME.colors.bgPrimary }}>
+        <div style={{ color: PIWORK_THEME.colors.textSecondary }}>Загрузка...</div>
+      </div>
+    );
+  }
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: '100vh',
-        backgroundColor: PIWORK_THEME.colors.bgPrimary,
-        color: PIWORK_THEME.colors.textPrimary,
-        paddingBottom: 80,
-      }}
-    >
-      {/* Header */}
-      <header
-        style={{
-          backgroundColor: PIWORK_THEME.colors.bgSecondary,
-          borderBottom: `1px solid ${PIWORK_THEME.colors.border}`,
-          padding: `${PIWORK_THEME.spacing.md}px`,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: PIWORK_THEME.spacing.md }}>
-          <button
-            onClick={() => window.history.back()}
-            style={{
-              backgroundColor: 'transparent',
-              border: 'none',
-              color: PIWORK_THEME.colors.primary,
-              fontSize: 24,
-              cursor: 'pointer',
-              padding: 0,
-            }}
-          >
-            ←
-          </button>
-          <h1
-            style={{
-              fontSize: PIWORK_THEME.typography.h2.fontSize,
-              fontWeight: 700,
-              margin: 0,
-            }}
-          >
-            Профиль
-          </h1>
-        </div>
+    <div style={{
+      display: 'flex', flexDirection: 'column', minHeight: '100vh',
+      backgroundColor: PIWORK_THEME.colors.bgPrimary, color: PIWORK_THEME.colors.textPrimary, paddingBottom: 80,
+    }}>
+      <header style={{
+        backgroundColor: PIWORK_THEME.colors.bgSecondary,
+        borderBottom: `1px solid ${PIWORK_THEME.colors.border}`,
+        padding: `${PIWORK_THEME.spacing.md}px`,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      }}>
+        <h1 style={{ fontSize: PIWORK_THEME.typography.h1.fontSize, fontWeight: 700, margin: 0 }}>Профиль</h1>
+        <button onClick={() => editing ? setEditing(false) : setEditing(true)} style={{
+          backgroundColor: editing ? 'transparent' : PIWORK_THEME.colors.primary,
+          border: editing ? `1px solid ${PIWORK_THEME.colors.border}` : 'none',
+          color: editing ? PIWORK_THEME.colors.textSecondary : '#fff',
+          padding: '8px 16px', borderRadius: PIWORK_THEME.radius.md,
+          cursor: 'pointer', fontSize: 13, fontWeight: 600,
+        }}>
+          {editing ? 'Отмена' : 'Изменить'}
+        </button>
       </header>
 
-      {/* Main Content */}
-      <main
-        style={{
-          flex: 1,
-          padding: PIWORK_THEME.spacing.lg,
-          overflowY: 'auto',
-        }}
-      >
-        {/* Profile Card */}
-        <div
-          style={{
-            backgroundColor: PIWORK_THEME.colors.bgSecondary,
-            border: `1px solid ${PIWORK_THEME.colors.border}`,
-            borderRadius: PIWORK_THEME.radius.lg,
-            padding: PIWORK_THEME.spacing.lg,
-            marginBottom: PIWORK_THEME.spacing.lg,
-            textAlign: 'center',
-          }}
-        >
-          <div
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: '50%',
-              backgroundColor: PIWORK_THEME.colors.primary,
-              margin: '0 auto ' + PIWORK_THEME.spacing.md + 'px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 40,
-            }}
-          >
-            👤
+      <main style={{ flex: 1, padding: PIWORK_THEME.spacing.md, overflowY: 'auto' }}>
+        {/* Avatar & Name */}
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          padding: PIWORK_THEME.spacing.lg, marginBottom: PIWORK_THEME.spacing.md,
+        }}>
+          <div style={{
+            width: 80, height: 80, borderRadius: '50%',
+            backgroundColor: PIWORK_THEME.colors.primary,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 36, marginBottom: PIWORK_THEME.spacing.md,
+          }}>
+            {user?.avatar || '👤'}
           </div>
-
-          {/* Name with Edit Button */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            <h2
-              style={{
-                fontSize: 20,
-                fontWeight: 700,
-                margin: 0,
-              }}
-            >
-              designer_pro
-            </h2>
-            <button
-              onClick={() => setIsEditing(!isEditing)}
-              style={{
-                backgroundColor: 'transparent',
-                border: 'none',
-                color: PIWORK_THEME.colors.primary,
-                fontSize: 18,
-                cursor: 'pointer',
-                padding: 0,
-              }}
-              title="Edit profile"
-            >
-              ✏️
-            </button>
-          </div>
-
-          {/* Username */}
-          <p
-            style={{
-              fontSize: PIWORK_THEME.typography.small.fontSize,
-              color: PIWORK_THEME.colors.textSecondary,
-              margin: 0,
-              marginBottom: PIWORK_THEME.spacing.lg,
-            }}
-          >
-            @designer_pro
+          <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{user?.username}</h2>
+          <p style={{ fontSize: 14, color: PIWORK_THEME.colors.textSecondary, margin: '4px 0' }}>
+            {user?.role === 'admin' ? '👑 Администратор' : '🔧 Фрилансер'}
           </p>
-
-          {/* Stats - 3 Columns */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: PIWORK_THEME.spacing.md,
-              marginBottom: PIWORK_THEME.spacing.lg,
-              borderTop: `1px solid ${PIWORK_THEME.colors.border}`,
-              paddingTop: PIWORK_THEME.spacing.lg,
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  fontSize: 20,
-                  fontWeight: 700,
-                  color: '#22C55E',
-                  marginBottom: 4,
-                }}
-              >
-                24
-              </div>
-              <p
-                style={{
-                  fontSize: PIWORK_THEME.typography.small.fontSize,
-                  color: PIWORK_THEME.colors.textSecondary,
-                  margin: 0,
-                }}
-              >
-                Completed
-              </p>
+          {user?.rating > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+              <span style={{ color: '#F59E0B' }}>★</span>
+              <span style={{ fontWeight: 600 }}>{user.rating}</span>
             </div>
-
-            <div>
-              <div
-                style={{
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: '#FBBF24',
-                  marginBottom: 4,
-                  letterSpacing: 1,
-                }}
-              >
-                ★★★★★
-              </div>
-              <p
-                style={{
-                  fontSize: PIWORK_THEME.typography.small.fontSize,
-                  color: PIWORK_THEME.colors.textSecondary,
-                  margin: 0,
-                }}
-              >
-                4.9 Rating
-              </p>
-            </div>
-
-            <div>
-              <div
-                style={{
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: PIWORK_THEME.colors.primary,
-                  marginBottom: 4,
-                }}
-              >
-                2.3k π
-              </div>
-              <p
-                style={{
-                  fontSize: PIWORK_THEME.typography.small.fontSize,
-                  color: PIWORK_THEME.colors.textSecondary,
-                  margin: 0,
-                }}
-              >
-                Earnings
-              </p>
-            </div>
-          </div>
-
-          {/* Share Profile Button */}
-          <PiworkButton variant="secondary" fullWidth={true}>
-            Share Profile
-          </PiworkButton>
+          )}
         </div>
 
-        {/* Tabs */}
-        <div
-          style={{
-            display: 'flex',
-            gap: PIWORK_THEME.spacing.md,
-            borderBottom: `1px solid ${PIWORK_THEME.colors.border}`,
-            marginBottom: PIWORK_THEME.spacing.lg,
-          }}
-        >
-          {['about', 'portfolio', 'reviews'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab as TabType)}
-              style={{
-                padding: `${PIWORK_THEME.spacing.md}px 0`,
-                backgroundColor: 'transparent',
-                border: 'none',
-                color:
-                  activeTab === tab
-                    ? PIWORK_THEME.colors.primary
-                    : PIWORK_THEME.colors.textSecondary,
-                fontSize: PIWORK_THEME.typography.body.fontSize,
-                fontWeight: activeTab === tab ? 700 : 500,
-                cursor: 'pointer',
-                borderBottom:
-                  activeTab === tab ? `2px solid ${PIWORK_THEME.colors.primary}` : 'none',
-                marginBottom: -1,
-                transition: 'all 200ms ease',
-                textTransform: 'capitalize',
-              }}
-            >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
+        {/* Stats */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
+          gap: PIWORK_THEME.spacing.md, marginBottom: PIWORK_THEME.spacing.md,
+        }}>
+          {[
+            { label: 'Connects', value: connects },
+            { label: 'Задач', value: user?.total_jobs_posted || 0 },
+            { label: 'Выполнено', value: user?.total_jobs_completed || 0 },
+          ].map(({ label, value }) => (
+            <div key={label} style={{
+              backgroundColor: PIWORK_THEME.colors.bgSecondary,
+              border: `1px solid ${PIWORK_THEME.colors.border}`,
+              borderRadius: PIWORK_THEME.radius.lg, padding: PIWORK_THEME.spacing.md,
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 24, fontWeight: 700, color: PIWORK_THEME.colors.primary }}>{value}</div>
+              <div style={{ fontSize: 12, color: PIWORK_THEME.colors.textSecondary, marginTop: 4 }}>{label}</div>
+            </div>
           ))}
         </div>
 
-        {/* Tab Content */}
-        {activeTab === 'about' && (
-          <div
-            style={{
-              backgroundColor: PIWORK_THEME.colors.bgSecondary,
-              border: `1px solid ${PIWORK_THEME.colors.border}`,
-              borderRadius: PIWORK_THEME.radius.lg,
-              padding: PIWORK_THEME.spacing.lg,
-            }}
-          >
-            <h3
-              style={{
-                fontSize: PIWORK_THEME.typography.h2.fontSize,
-                fontWeight: 600,
-                margin: 0,
-                marginBottom: PIWORK_THEME.spacing.md,
-              }}
-            >
-              About Me
-            </h3>
-            <p
-              style={{
-                fontSize: PIWORK_THEME.typography.body.fontSize,
-                color: PIWORK_THEME.colors.textSecondary,
-                lineHeight: 1.6,
-                margin: 0,
-              }}
-            >
-              Experienced designer and developer with 5+ years in creating stunning digital
-              experiences. Specializing in UI/UX design, web development, and brand identity.
-              Passionate about helping businesses grow through creative solutions.
-            </p>
-          </div>
-        )}
-
-        {activeTab === 'portfolio' && (
-          <div style={{ position: 'relative' }}>
-            {portfolioItems.length > 0 ? (
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: 8,
-                  marginBottom: PIWORK_THEME.spacing.lg,
-                }}
-              >
-                {portfolioItems.map((item) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      aspectRatio: '1 / 1',
-                      backgroundColor: PIWORK_THEME.colors.bgSecondary,
-                      border: `1px solid ${PIWORK_THEME.colors.border}`,
-                      borderRadius: 8,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 40,
-                      cursor: 'pointer',
-                      transition: 'all 200ms ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.borderColor =
-                        PIWORK_THEME.colors.primary;
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLElement).style.borderColor =
-                        PIWORK_THEME.colors.border;
-                    }}
-                  >
-                    {item.image}
+        {/* Edit / View fields */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: PIWORK_THEME.spacing.md }}>
+          {editing ? (
+            <>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: PIWORK_THEME.colors.textSecondary, display: 'block', marginBottom: 8 }}>О себе</label>
+                <textarea value={editData.bio} onChange={(e) => setEditData((p) => ({ ...p, bio: e.target.value }))}
+                  placeholder="Расскажите о своём опыте..." rows={3}
+                  style={{ ...inputStyle, resize: 'vertical' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: PIWORK_THEME.colors.textSecondary, display: 'block', marginBottom: 8 }}>Навыки</label>
+                <input type="text" value={editData.skills} onChange={(e) => setEditData((p) => ({ ...p, skills: e.target.value }))}
+                  placeholder="Figma, JavaScript, копирайтинг..." style={inputStyle} />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: PIWORK_THEME.colors.textSecondary, display: 'block', marginBottom: 8 }}>Доступность</label>
+                <select value={editData.availability} onChange={(e) => setEditData((p) => ({ ...p, availability: e.target.value }))} style={inputStyle}>
+                  <option value="available">Доступен</option>
+                  <option value="busy">Занят</option>
+                  <option value="away">Не активен</option>
+                </select>
+              </div>
+              <button onClick={handleSave} disabled={saving} style={{
+                padding: PIWORK_THEME.spacing.md, backgroundColor: PIWORK_THEME.colors.primary,
+                border: 'none', borderRadius: PIWORK_THEME.radius.md, color: '#fff',
+                cursor: saving ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 600,
+                opacity: saving ? 0.7 : 1,
+              }}>
+                {saving ? 'Сохраняем...' : 'Сохранить'}
+              </button>
+            </>
+          ) : (
+            <>
+              {user?.bio && (
+                <div style={{ backgroundColor: PIWORK_THEME.colors.bgSecondary, border: `1px solid ${PIWORK_THEME.colors.border}`, borderRadius: PIWORK_THEME.radius.lg, padding: PIWORK_THEME.spacing.md }}>
+                  <h3 style={{ fontSize: 13, fontWeight: 600, color: PIWORK_THEME.colors.textSecondary, margin: 0, marginBottom: 8 }}>О себе</h3>
+                  <p style={{ fontSize: 14, margin: 0, lineHeight: 1.6 }}>{user.bio}</p>
+                </div>
+              )}
+              {user?.skills && (
+                <div style={{ backgroundColor: PIWORK_THEME.colors.bgSecondary, border: `1px solid ${PIWORK_THEME.colors.border}`, borderRadius: PIWORK_THEME.radius.lg, padding: PIWORK_THEME.spacing.md }}>
+                  <h3 style={{ fontSize: 13, fontWeight: 600, color: PIWORK_THEME.colors.textSecondary, margin: 0, marginBottom: 8 }}>Навыки</h3>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {user.skills.split(',').map((s: string) => (
+                      <span key={s} style={{ padding: '4px 10px', backgroundColor: `${PIWORK_THEME.colors.primary}20`, color: PIWORK_THEME.colors.primary, borderRadius: PIWORK_THEME.radius.sm, fontSize: 13 }}>
+                        {s.trim()}
+                      </span>
+                    ))}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div
-                style={{
-                  backgroundColor: PIWORK_THEME.colors.bgSecondary,
-                  border: `1px solid ${PIWORK_THEME.colors.border}`,
-                  borderRadius: PIWORK_THEME.radius.lg,
-                  padding: PIWORK_THEME.spacing.xl,
-                  textAlign: 'center',
-                  marginBottom: PIWORK_THEME.spacing.lg,
-                }}
-              >
-                <div style={{ fontSize: 40, marginBottom: PIWORK_THEME.spacing.md }}>🖼️</div>
-                <p
-                  style={{
-                    fontSize: PIWORK_THEME.typography.body.fontSize,
-                    color: PIWORK_THEME.colors.textSecondary,
-                    margin: 0,
-                  }}
-                >
-                  No works yet
-                </p>
-              </div>
-            )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
 
-            {hasMore && (
-              <div style={{ textAlign: 'center', marginBottom: PIWORK_THEME.spacing.lg }}>
-                <button
-                  style={{
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    color: PIWORK_THEME.colors.primary,
-                    fontSize: PIWORK_THEME.typography.body.fontSize,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    textDecoration: 'underline',
-                  }}
-                >
-                  Show all ({portfolioItems.length})
-                </button>
-              </div>
-            )}
-
-            {/* Floating Add Button */}
-            <button
-              style={{
-                position: 'fixed',
-                bottom: 100,
-                right: 20,
-                width: 56,
-                height: 56,
-                borderRadius: '50%',
-                backgroundColor: PIWORK_THEME.colors.primary,
-                color: '#FFFFFF',
-                border: 'none',
-                fontSize: 24,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.4)',
-                transition: 'all 200ms ease',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.transform = 'scale(1.1)';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
-              }}
-              title="Add work to portfolio"
-            >
-              ➕
-            </button>
-          </div>
-        )}
-
-        {activeTab === 'reviews' && <Reviews reviews={reviewsData} />}
+        {/* Logout */}
+        <button onClick={handleLogout} style={{
+          width: '100%', marginTop: PIWORK_THEME.spacing.lg,
+          padding: PIWORK_THEME.spacing.md, backgroundColor: 'transparent',
+          border: `1px solid #EF4444`, borderRadius: PIWORK_THEME.radius.md,
+          color: '#EF4444', cursor: 'pointer', fontSize: 14, fontWeight: 600,
+        }}>
+          Выйти из аккаунта
+        </button>
       </main>
 
-      {/* Bottom Navigation */}
       <BottomNavigation />
     </div>
   );
