@@ -7,14 +7,13 @@ import { AppWrapper } from "@/components/app-wrapper";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Made with App Studio",
-  description: "Piwork - Earn Pi on Pi Network",
+  title: "PiWork — Earn Pi with your skills",
+  description: "Pi Network freelance marketplace — find work or hire talent",
   manifest: "/manifest.json",
   icons: {
     icon: "/icon-light-32x32.png",
     apple: "/apple-icon.png",
   },
-    generator: 'v0.app'
 };
 
 export const viewport: Viewport = {
@@ -44,6 +43,8 @@ html {
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        {/* Pi Network SDK */}
+        <script src="https://sdk.minepi.com/pi-sdk.js" async />
       </head>
       <body>
         <AppWrapper>{children}</AppWrapper>
