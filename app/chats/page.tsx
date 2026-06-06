@@ -86,7 +86,7 @@ export default function ChatsPage() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                         <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          Задача #{room.job_id}
+                          {room.other_user_name || `Собеседник`}
                         </h3>
                         <span style={{ fontSize: 12, color: PIWORK_THEME.colors.textSecondary, flexShrink: 0, marginLeft: 8 }}>
                           {timeAgo(room.last_message_at)}
@@ -96,7 +96,7 @@ export default function ChatsPage() {
                         fontSize: 13, color: PIWORK_THEME.colors.textSecondary, margin: 0,
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       }}>
-                        {room.last_message || 'Нет сообщений'}
+                        {room.last_message || (room.job_title ? `📋 ${room.job_title}` : 'Нет сообщений')}
                       </p>
                     </div>
                   </div>

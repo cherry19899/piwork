@@ -1,16 +1,16 @@
 {
-  "/api/payments/validate-escrow/route": "/api/payments/validate-escrow",
-  "/api/tasks/unlock/route": "/api/tasks/unlock",
   "/_not-found/page": "/_not-found",
   "/api/payments/route": "/api/payments",
-  "/create/page": "/create",
-  "/feed/page": "/feed",
+  "/api/payments/validate-escrow/route": "/api/payments/validate-escrow",
+  "/api/tasks/unlock/route": "/api/tasks/unlock",
   "/chats/page": "/chats",
-  "/login/page": "/login",
+  "/feed/page": "/feed",
+  "/create/page": "/create",
   "/chat/[id]/page": "/chat/[id]",
-  "/profile/page": "/profile",
-  "/task/[id]/page": "/task/[id]",
+  "/login/page": "/login",
   "/onboarding/page": "/onboarding",
+  "/settings/page": "/settings",
+  "/task/[id]/page": "/task/[id]",
   "/page": "/",
-  "/settings/page": "/settings"
+  "/profile/page": "/profile"
 }

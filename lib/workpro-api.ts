@@ -146,6 +146,9 @@ export interface ChatRoom {
   client_id: string;
   freelancer_id: string;
   job_id: number;
+  job_title: string | null;
+  other_user_id: string | null;
+  other_user_name: string | null;
   last_message: string | null;
   last_message_at: string | null;
   created_at: string;
