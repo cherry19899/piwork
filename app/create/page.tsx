@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { PIWORK_THEME } from '@/lib/piwork-design-tokens';
 import { BottomNavigation } from '@/components/bottom-navigation';
@@ -17,6 +17,13 @@ const CATEGORY_RU: Record<string, string> = {
 export default function CreateTaskPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
+
+  useEffect(() => {
+    try {
+      const uid = JSON.parse(localStorage.getItem('piUser') || 'null')?.uid;
+      if (!uid) router.replace('/login');
+    } catch { router.replace('/login'); }
+  }, [router]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({

@@ -18,10 +18,12 @@ export function RatingModal({ toUserId, toUserName, jobId, onClose, onSubmitted 
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const handleSubmit = async () => {
     if (rating === 0) return;
     setSubmitting(true);
+    setSubmitError('');
     try {
       await submitRating(toUserId, jobId, rating, comment);
       setDone(true);
@@ -30,8 +32,7 @@ export function RatingModal({ toUserId, toUserName, jobId, onClose, onSubmitted 
         onClose();
       }, 1200);
     } catch (_) {
-      onSubmitted?.();
-      onClose();
+      setSubmitError('Не удалось отправить отзыв. Попробуйте ещё раз.');
     } finally {
       setSubmitting(false);
     }
@@ -112,6 +113,12 @@ export function RatingModal({ toUserId, toUserName, jobId, onClose, onSubmitted 
                 marginBottom: PIWORK_THEME.spacing.md,
               }}
             />
+
+            {submitError && (
+              <p style={{ fontSize: 13, color: PIWORK_THEME.colors.error, margin: 0, marginBottom: PIWORK_THEME.spacing.md, textAlign: 'center' }}>
+                {submitError}
+              </p>
+            )}
 
             <div style={{ display: 'flex', gap: PIWORK_THEME.spacing.md }}>
               <button

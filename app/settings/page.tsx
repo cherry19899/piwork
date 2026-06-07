@@ -97,14 +97,6 @@ export default function SettingsPage() {
     } catch (_) {}
   }, []);
 
-  // PIN modal
-  const [showPinModal, setShowPinModal] = useState(false);
-  const [pinStep, setPinStep] = useState<'enter' | 'confirm'>('enter');
-  const [newPin, setNewPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
-  const [pinError, setPinError] = useState('');
-  const [pinSaved, setPinSaved] = useState(false);
-
   // Delete account modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
@@ -112,35 +104,20 @@ export default function SettingsPage() {
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
-  const handlePinNext = () => {
-    if (newPin.length !== 4) { setPinError('Введите 4 цифры'); return; }
-    setPinStep('confirm');
-    setPinError('');
-  };
-
-  const handlePinSave = () => {
-    if (confirmPin !== newPin) { setPinError('PIN не совпадает'); return; }
-    // Store hashed PIN in localStorage (real app would send to backend)
-    localStorage.setItem('user_pin', btoa(newPin));
-    setPinSaved(true);
-    setTimeout(() => {
-      setShowPinModal(false);
-      setPinStep('enter');
-      setNewPin('');
-      setConfirmPin('');
-      setPinSaved(false);
-      setPinError('');
-    }, 1200);
-  };
+  const [deleteError, setDeleteError] = useState('');
 
   const handleDeleteAccount = async () => {
     if (deleteConfirm !== 'УДАЛИТЬ') return;
     setDeleting(true);
+    setDeleteError('');
     try {
       await deleteAccount();
-    } catch (_) {}
-    localStorage.clear();
-    router.push('/login');
+      localStorage.clear();
+      router.push('/login');
+    } catch (e: any) {
+      setDeleteError(e.message || 'Ошибка при удалении');
+      setDeleting(false);
+    }
   };
 
   return (
@@ -207,14 +184,6 @@ export default function SettingsPage() {
               {kycVerified === null ? '...' : kycVerified ? '✓ Пройдена' : '⚠ Не пройдена'}
             </span>
           </SettingItem>
-          <SettingItem label="Изменить PIN" description="Обновить 4-значный PIN-код">
-            <button onClick={() => setShowPinModal(true)} style={{
-              padding: `${PIWORK_THEME.spacing.sm}px ${PIWORK_THEME.spacing.md}px`,
-              backgroundColor: PIWORK_THEME.colors.primary, color: '#fff',
-              border: 'none', borderRadius: PIWORK_THEME.radius.md,
-              fontSize: PIWORK_THEME.typography.small.fontSize, fontWeight: 600, cursor: 'pointer',
-            }}>Изменить</button>
-          </SettingItem>
           <SettingItem label="Биометрия" description="Вход по отпечатку или лицу" divider={false}>
             <ToggleSwitch checked={biometricEnabled} onChange={setBiometricEnabled} />
           </SettingItem>
@@ -244,78 +213,6 @@ export default function SettingsPage() {
       </main>
 
       <BottomNavigation />
-
-      {/* PIN Modal */}
-      {showPinModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 100, backgroundColor: PIWORK_THEME.colors.overlay, display: 'flex', alignItems: 'flex-end' }}
-          onClick={() => setShowPinModal(false)}>
-          <div style={{
-            width: '100%', backgroundColor: PIWORK_THEME.colors.bgSecondary,
-            borderRadius: `${PIWORK_THEME.radius.xl}px ${PIWORK_THEME.radius.xl}px 0 0`,
-            padding: PIWORK_THEME.spacing.lg, paddingBottom: 32,
-          }} onClick={(e) => e.stopPropagation()}>
-            {pinSaved ? (
-              <div style={{ textAlign: 'center', padding: PIWORK_THEME.spacing.xl }}>
-                <p style={{ fontSize: 40 }}>✅</p>
-                <p style={{ fontWeight: 700, color: '#22C55E', margin: 0 }}>PIN сохранён</p>
-              </div>
-            ) : (
-              <>
-                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, marginBottom: 8 }}>
-                  {pinStep === 'enter' ? 'Новый PIN' : 'Подтвердите PIN'}
-                </h2>
-                <p style={{ fontSize: 13, color: PIWORK_THEME.colors.textSecondary, marginBottom: PIWORK_THEME.spacing.lg }}>
-                  {pinStep === 'enter' ? 'Введите 4-значный PIN-код' : 'Повторите PIN для подтверждения'}
-                </p>
-                <input
-                  type="password" inputMode="numeric" maxLength={4}
-                  value={pinStep === 'enter' ? newPin : confirmPin}
-                  onChange={(e) => {
-                    const v = e.target.value.replace(/\D/g, '').slice(0, 4);
-                    pinStep === 'enter' ? setNewPin(v) : setConfirmPin(v);
-                    setPinError('');
-                  }}
-                  placeholder="● ● ● ●"
-                  style={{
-                    width: '100%', textAlign: 'center', fontSize: 24, letterSpacing: 12,
-                    backgroundColor: PIWORK_THEME.colors.bgPrimary,
-                    border: `1px solid ${pinError ? '#EF4444' : PIWORK_THEME.colors.border}`,
-                    borderRadius: PIWORK_THEME.radius.md, padding: PIWORK_THEME.spacing.md,
-                    color: PIWORK_THEME.colors.textPrimary, outline: 'none',
-                    boxSizing: 'border-box', marginBottom: pinError ? 8 : PIWORK_THEME.spacing.md,
-                  }}
-                />
-                {pinError && <p style={{ color: '#EF4444', fontSize: 13, margin: '0 0 16px' }}>{pinError}</p>}
-                <div style={{ display: 'flex', gap: PIWORK_THEME.spacing.md }}>
-                  <button onClick={() => {
-                    if (pinStep === 'confirm') { setPinStep('enter'); setPinError(''); }
-                    else setShowPinModal(false);
-                  }} style={{
-                    flex: 1, padding: PIWORK_THEME.spacing.md, backgroundColor: 'transparent',
-                    border: `1px solid ${PIWORK_THEME.colors.border}`, borderRadius: PIWORK_THEME.radius.md,
-                    color: PIWORK_THEME.colors.textSecondary, cursor: 'pointer', fontSize: 14,
-                  }}>
-                    {pinStep === 'confirm' ? 'Назад' : 'Отмена'}
-                  </button>
-                  <button
-                    onClick={pinStep === 'enter' ? handlePinNext : handlePinSave}
-                    disabled={(pinStep === 'enter' ? newPin : confirmPin).length !== 4}
-                    style={{
-                      flex: 2, padding: PIWORK_THEME.spacing.md,
-                      backgroundColor: (pinStep === 'enter' ? newPin : confirmPin).length === 4
-                        ? PIWORK_THEME.colors.primary : PIWORK_THEME.colors.disabled,
-                      border: 'none', borderRadius: PIWORK_THEME.radius.md,
-                      color: '#fff', cursor: (pinStep === 'enter' ? newPin : confirmPin).length === 4 ? 'pointer' : 'not-allowed',
-                      fontSize: 14, fontWeight: 600,
-                    }}>
-                    {pinStep === 'enter' ? 'Далее' : 'Сохранить PIN'}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Terms Modal */}
       {showTermsModal && (
@@ -383,8 +280,11 @@ export default function SettingsPage() {
                 marginBottom: PIWORK_THEME.spacing.md,
               }}
             />
+            {deleteError && (
+              <p style={{ fontSize: 13, color: '#EF4444', margin: '0 0 12px', textAlign: 'center' }}>{deleteError}</p>
+            )}
             <div style={{ display: 'flex', gap: PIWORK_THEME.spacing.md }}>
-              <button onClick={() => { setShowDeleteModal(false); setDeleteConfirm(''); }} style={{
+              <button onClick={() => { setShowDeleteModal(false); setDeleteConfirm(''); setDeleteError(''); }} style={{
                 flex: 1, padding: PIWORK_THEME.spacing.md, backgroundColor: 'transparent',
                 border: `1px solid ${PIWORK_THEME.colors.border}`, borderRadius: PIWORK_THEME.radius.md,
                 color: PIWORK_THEME.colors.textSecondary, cursor: 'pointer', fontSize: 14,
