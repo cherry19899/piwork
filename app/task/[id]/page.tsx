@@ -520,6 +520,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
               value={applyMessage}
               onChange={(e) => setApplyMessage(e.target.value)}
               placeholder="Расскажите почему вы подходите для этой задачи..."
+              maxLength={2000}
               rows={4}
               style={{
                 width: '100%', backgroundColor: PIWORK_THEME.colors.bgPrimary,
@@ -671,6 +672,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
               value={disputeReason}
               onChange={(e) => setDisputeReason(e.target.value)}
               placeholder="Опишите ситуацию подробно..."
+              maxLength={1000}
               rows={4}
               style={{
                 width: '100%', backgroundColor: PIWORK_THEME.colors.bgPrimary,

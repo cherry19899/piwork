@@ -173,6 +173,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
           ref={inputRef} type="text" value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
+          maxLength={2000}
           placeholder="Сообщение..."
           style={{
             flex: 1, backgroundColor: PIWORK_THEME.colors.bgPrimary,
