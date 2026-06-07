@@ -126,7 +126,7 @@ export default function NotificationsPage() {
         ) : (
           notifications.map((notif) => {
             const icon = NOTIF_ICONS[notif.type] || NOTIF_ICONS.default;
-            const isClickable = notif.job_id || notif.room_id;
+            const isClickable = notif.job_id || notif.room_id || notif.type === 'message' || ['hired', 'application', 'submitted', 'completed'].includes(notif.type);
             return (
               <div
                 key={notif.id}
