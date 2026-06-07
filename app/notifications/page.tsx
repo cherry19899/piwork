@@ -54,8 +54,10 @@ export default function NotificationsPage() {
   };
 
   const handleNotifClick = (notif: any) => {
-    if (notif.job_id) router.push(`/task/${notif.job_id}`);
-    else if (notif.room_id) router.push(`/chat/${notif.room_id}`);
+    if (notif.room_id) router.push(`/chat/${notif.room_id}`);
+    else if (notif.job_id) router.push(`/task/${notif.job_id}`);
+    else if (notif.type === 'message') router.push('/chats');
+    else if (['hired', 'application', 'submitted', 'completed'].includes(notif.type)) router.push('/profile');
   };
 
   return (

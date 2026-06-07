@@ -23,6 +23,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
     hired_freelancer_id?: string;
     hired_freelancer_name?: string;
     escrow_id?: number;
+    room_id?: string;
   } | null>(null);
   const [applications, setApplications] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -311,22 +312,36 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
             border: `1px solid ${job.status === 'completed' ? '#22C55E40' : job.status === 'submitted' ? '#3B82F640' : '#F59E0B40'}`,
             borderRadius: PIWORK_THEME.radius.lg,
             padding: PIWORK_THEME.spacing.md, marginBottom: PIWORK_THEME.spacing.lg,
-            display: 'flex', alignItems: 'center', gap: 12,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
           }}>
-            <span style={{ fontSize: 24 }}>
-              {job.status === 'completed' ? '✅' : job.status === 'submitted' ? '🔍' : '🤝'}
-            </span>
-            <div>
-              <p style={{
-                fontSize: 12, fontWeight: 600, margin: 0,
-                color: job.status === 'completed' ? '#22C55E' : job.status === 'submitted' ? '#3B82F6' : '#F59E0B',
-              }}>
-                {job.status === 'completed' ? 'Задача завершена' : job.status === 'submitted' ? 'Работа сдана на проверку' : 'Исполнитель нанят'}
-              </p>
-              <p style={{ fontSize: 14, fontWeight: 600, margin: 0, marginTop: 2, color: PIWORK_THEME.colors.textPrimary }}>
-                {(job as any).hired_freelancer_name}
-              </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 24 }}>
+                {job.status === 'completed' ? '✅' : job.status === 'submitted' ? '🔍' : '🤝'}
+              </span>
+              <div>
+                <p style={{
+                  fontSize: 12, fontWeight: 600, margin: 0,
+                  color: job.status === 'completed' ? '#22C55E' : job.status === 'submitted' ? '#3B82F6' : '#F59E0B',
+                }}>
+                  {job.status === 'completed' ? 'Задача завершена' : job.status === 'submitted' ? 'Работа сдана на проверку' : 'Исполнитель нанят'}
+                </p>
+                <p style={{ fontSize: 14, fontWeight: 600, margin: 0, marginTop: 2, color: PIWORK_THEME.colors.textPrimary }}>
+                  {(job as any).hired_freelancer_name}
+                </p>
+              </div>
             </div>
+            {(job as any).room_id && (
+              <button
+                onClick={() => router.push(`/chat/${(job as any).room_id}`)}
+                style={{
+                  padding: '8px 14px', backgroundColor: PIWORK_THEME.colors.primary,
+                  border: 'none', borderRadius: PIWORK_THEME.radius.md,
+                  color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+                }}
+              >
+                💬 Чат
+              </button>
+            )}
           </div>
         )}
 
