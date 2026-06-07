@@ -1,0 +1,19 @@
+{
+  "/api/payments/route": "/api/payments",
+  "/api/payments/validate-escrow/route": "/api/payments/validate-escrow",
+  "/_not-found/page": "/_not-found",
+  "/api/tasks/unlock/route": "/api/tasks/unlock",
+  "/chats/page": "/chats",
+  "/chat/[id]/page": "/chat/[id]",
+  "/profile/[id]/page": "/profile/[id]",
+  "/login/page": "/login",
+  "/onboarding/page": "/onboarding",
+  "/admin/page": "/admin",
+  "/feed/page": "/feed",
+  "/notifications/page": "/notifications",
+  "/create/page": "/create",
+  "/page": "/",
+  "/task/[id]/page": "/task/[id]",
+  "/settings/page": "/settings",
+  "/profile/page": "/profile"
+}
