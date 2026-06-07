@@ -6,7 +6,7 @@ import { PIWORK_THEME } from '@/lib/piwork-design-tokens';
 import { BottomNavigation } from '@/components/bottom-navigation';
 import { PiworkButton } from '@/components/piwork-button';
 import { RatingModal } from '@/components/rating-modal';
-import { getJob, applyToJob, hireFreelancer, completeJob, submitWork, type Job } from '@/lib/workpro-api';
+import { getJob, applyToJob, hireFreelancer, completeJob, submitWork, getEscrows, openDispute, type Job } from '@/lib/workpro-api';
 import { PiPaymentService } from '@/lib/pi-sdk-service';
 
 type TabType = 'details' | 'applications';
@@ -37,6 +37,10 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
 
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [ratingTarget, setRatingTarget] = useState<{ id: string; name: string } | null>(null);
+  const [escrowId, setEscrowId] = useState<number | null>(null);
+  const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [submittingDispute, setSubmittingDispute] = useState(false);
 
   const currentUserId = typeof window !== 'undefined'
     ? JSON.parse(localStorage.getItem('piUser') || '{}')?.uid || null
@@ -51,6 +55,14 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
       })
       .catch(() => {})
       .finally(() => setIsLoading(false));
+    // Fetch escrow for this job
+    getEscrows()
+      .then((data: any) => {
+        const escrows = data.escrows || data || [];
+        const e = escrows.find((e: any) => String(e.job_id) === String(id) && ['pending', 'funded'].includes(e.status));
+        if (e) setEscrowId(e.id);
+      })
+      .catch(() => {});
   }, [id]);
 
   const isMyJob = job?.posted_by === currentUserId;
@@ -120,6 +132,19 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleOpenDispute = async () => {
+    if (!escrowId || !disputeReason.trim()) return;
+    setSubmittingDispute(true);
+    try {
+      await openDispute(escrowId, disputeReason.trim());
+      setShowDisputeModal(false);
+      setDisputeReason('');
+      alert('Спор открыт. Команда поддержки рассмотрит ситуацию в течение 48 часов.');
+    } catch (e: any) {
+      alert(e.message || 'Ошибка при открытии спора');
+    } finally { setSubmittingDispute(false); }
   };
 
   // Client approves work and releases escrow
@@ -332,8 +357,29 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
               borderRadius: PIWORK_THEME.radius.lg, padding: PIWORK_THEME.spacing.lg,
             }}>
               <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, marginBottom: PIWORK_THEME.spacing.md }}>Заказчик</h3>
-              <p style={{ fontSize: 14, color: PIWORK_THEME.colors.textSecondary, margin: 0 }}>{job.posted_by_name}</p>
+              {!isMyJob ? (
+                <button onClick={() => router.push(`/profile/${job.posted_by}`)} style={{
+                  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                  color: PIWORK_THEME.colors.primary, fontSize: 14, fontWeight: 600, textDecoration: 'underline',
+                }}>
+                  {job.posted_by_name}
+                </button>
+              ) : (
+                <p style={{ fontSize: 14, color: PIWORK_THEME.colors.textSecondary, margin: 0 }}>{job.posted_by_name}</p>
+              )}
             </div>
+
+            {/* Dispute button */}
+            {escrowId && (job.status === 'in_progress' || job.status === 'submitted') && (isMyJob || isHiredFreelancer) && (
+              <button onClick={() => setShowDisputeModal(true)} style={{
+                width: '100%', padding: PIWORK_THEME.spacing.md,
+                backgroundColor: 'transparent', border: `1px solid #F59E0B`,
+                borderRadius: PIWORK_THEME.radius.md, color: '#F59E0B',
+                cursor: 'pointer', fontSize: 13, fontWeight: 600,
+              }}>
+                ⚠️ Открыть спор по эскроу
+              </button>
+            )}
           </div>
         )}
 
@@ -394,6 +440,9 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
             )}
           </div>
         )}
+
+        {/* Hired freelancer name in applications — make clickable */}
+        {/* (handled inline above in applications tab) */}
 
         {/* Apply form */}
         {showApplyForm && !isMyJob && (
@@ -524,6 +573,57 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
           )
         )}
       </div>
+
+      {/* Dispute modal */}
+      {showDisputeModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, backgroundColor: PIWORK_THEME.colors.overlay, display: 'flex', alignItems: 'flex-end' }}
+          onClick={() => setShowDisputeModal(false)}>
+          <div style={{
+            width: '100%', backgroundColor: PIWORK_THEME.colors.bgSecondary,
+            borderRadius: `${PIWORK_THEME.radius.xl}px ${PIWORK_THEME.radius.xl}px 0 0`,
+            padding: PIWORK_THEME.spacing.lg, paddingBottom: 32,
+          }} onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, marginBottom: 8, color: '#F59E0B' }}>
+              Открыть спор
+            </h2>
+            <p style={{ fontSize: 13, color: PIWORK_THEME.colors.textSecondary, marginBottom: PIWORK_THEME.spacing.lg }}>
+              Опишите проблему. Средства в эскроу будут заморожены до разрешения спора.
+            </p>
+            <textarea
+              value={disputeReason}
+              onChange={(e) => setDisputeReason(e.target.value)}
+              placeholder="Опишите ситуацию подробно..."
+              rows={4}
+              style={{
+                width: '100%', backgroundColor: PIWORK_THEME.colors.bgPrimary,
+                border: `1px solid ${PIWORK_THEME.colors.border}`,
+                borderRadius: PIWORK_THEME.radius.md, padding: PIWORK_THEME.spacing.md,
+                color: PIWORK_THEME.colors.textPrimary, fontSize: 14, resize: 'none',
+                boxSizing: 'border-box', outline: 'none', marginBottom: PIWORK_THEME.spacing.md,
+              }}
+            />
+            <div style={{ display: 'flex', gap: PIWORK_THEME.spacing.md }}>
+              <button onClick={() => setShowDisputeModal(false)} style={{
+                flex: 1, padding: PIWORK_THEME.spacing.md, backgroundColor: 'transparent',
+                border: `1px solid ${PIWORK_THEME.colors.border}`, borderRadius: PIWORK_THEME.radius.md,
+                color: PIWORK_THEME.colors.textSecondary, cursor: 'pointer', fontSize: 14,
+              }}>Отмена</button>
+              <button
+                onClick={handleOpenDispute}
+                disabled={!disputeReason.trim() || submittingDispute}
+                style={{
+                  flex: 2, padding: PIWORK_THEME.spacing.md,
+                  backgroundColor: disputeReason.trim() ? '#F59E0B' : PIWORK_THEME.colors.disabled,
+                  border: 'none', borderRadius: PIWORK_THEME.radius.md, color: '#fff',
+                  cursor: disputeReason.trim() ? 'pointer' : 'not-allowed',
+                  fontSize: 14, fontWeight: 600,
+                }}>
+                {submittingDispute ? 'Отправляем...' : 'Открыть спор'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showRatingModal && ratingTarget && (
         <RatingModal

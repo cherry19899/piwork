@@ -291,3 +291,22 @@ export async function getNotifications(): Promise<{ notifications: any[]; unread
 export async function markNotificationsRead() {
   return apiRequest('/api/notifications/mark-read', { method: 'POST' });
 }
+
+export async function getMyPostedJobs(): Promise<{ jobs: any[] }> {
+  return apiRequest('/api/jobs/my').catch(() => ({ jobs: [] }));
+}
+
+export async function getUnreadChatCount(): Promise<{ count: number }> {
+  return apiRequest('/api/chat/unread').catch(() => ({ count: 0 }));
+}
+
+export async function openDispute(escrowId: number, reason: string) {
+  return apiRequest(`/api/escrows/${escrowId}/dispute`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export async function deleteAccount() {
+  return apiRequest('/api/users/me', { method: 'DELETE' });
+}

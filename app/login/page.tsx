@@ -18,14 +18,19 @@ export default function LoginPage() {
       const piUser = await PiPaymentService.authenticateUser();
       if (!piUser) throw new Error('Ошибка аутентификации Pi');
 
-      // Register/login on backend
       const { user, token } = await loginUser(piUser.uid, piUser.username);
 
-      // Store user data
       localStorage.setItem('piUser', JSON.stringify({ ...piUser, ...user }));
       if (token) localStorage.setItem('authToken', token);
 
-      window.location.href = '/feed';
+      // Show onboarding to first-time users
+      const isNewUser = user?.created_at && (Date.now() - new Date(user.created_at).getTime() < 60000);
+      const onboardingDone = localStorage.getItem('onboarding_done');
+      if (isNewUser && !onboardingDone) {
+        window.location.href = '/onboarding';
+      } else {
+        window.location.href = '/feed';
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка подключения к Pi Network');
     } finally {
@@ -39,7 +44,6 @@ export default function LoginPage() {
       minHeight: '100vh', backgroundColor: PIWORK_THEME.colors.bgPrimary,
       color: PIWORK_THEME.colors.textPrimary, padding: PIWORK_THEME.spacing.lg,
     }}>
-      {/* Logo */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 64 }}>
         <div style={{ fontSize: 64, marginBottom: PIWORK_THEME.spacing.md }}>π</div>
         <h1 style={{ fontSize: PIWORK_THEME.typography.h1.fontSize, fontWeight: 700, margin: 0, marginBottom: PIWORK_THEME.spacing.sm, textAlign: 'center' }}>
@@ -50,7 +54,6 @@ export default function LoginPage() {
         </p>
       </div>
 
-      {/* Button */}
       <div style={{ width: '100%', maxWidth: 400, marginBottom: 24 }}>
         <div style={{ height: 56 }}>
           <PiworkButton variant="primary" isLoading={isLoading} disabled={isLoading} onClick={handlePiConnect} fullWidth>

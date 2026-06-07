@@ -11,18 +11,35 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const loadingRef = useRef(false);
 
   const currentUserId = typeof window !== 'undefined'
     ? JSON.parse(localStorage.getItem('piUser') || '{}')?.uid || null
     : null;
 
+  // Merge by ID to prevent duplicates from optimistic updates
+  const mergeMessages = (prev: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] => {
+    const map = new Map(incoming.map(m => [m.id, m]));
+    // Keep optimistic (high negative temp ids) that server hasn't confirmed yet
+    prev.forEach(m => { if (!map.has(m.id)) map.set(m.id, m); });
+    return Array.from(map.values()).sort((a, b) => a.id - b.id);
+  };
+
   const loadMessages = async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     try {
       const { messages: msgs } = await getChatMessages(roomId);
-      setMessages(msgs);
-    } catch (_) {}
+      setMessages((prev) => mergeMessages(prev, msgs));
+      setError(null);
+    } catch (_) {
+      // silently retry next interval
+    } finally {
+      loadingRef.current = false;
+    }
   };
 
   useEffect(() => {
@@ -40,14 +57,16 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     if (!text || sending) return;
     setSending(true);
     setInput('');
+    setError(null);
     try {
       const { message } = await sendMessage(roomId, text);
-      setMessages((prev) => [...prev, message]);
+      setMessages((prev) => mergeMessages(prev, [message]));
     } catch (e: any) {
       setInput(text);
+      setError('Не удалось отправить сообщение');
     } finally {
       setSending(false);
-      inputRef.current?.focus();
+      setTimeout(() => inputRef.current?.focus(), 50);
     }
   };
 
@@ -55,9 +74,8 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
-  const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  };
+  const formatTime = (dateStr: string) =>
+    new Date(dateStr).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 
   return (
     <div style={{
@@ -68,8 +86,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
         backgroundColor: PIWORK_THEME.colors.bgSecondary,
         borderBottom: `1px solid ${PIWORK_THEME.colors.border}`,
         padding: `${PIWORK_THEME.spacing.md}px`,
-        display: 'flex', alignItems: 'center', gap: PIWORK_THEME.spacing.md,
-        flexShrink: 0,
+        display: 'flex', alignItems: 'center', gap: PIWORK_THEME.spacing.md, flexShrink: 0,
       }}>
         <button onClick={() => router.back()} style={{
           backgroundColor: 'transparent', border: 'none',
@@ -83,7 +100,6 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
         </div>
       </header>
 
-      {/* Messages */}
       <div style={{
         flex: 1, overflowY: 'auto', padding: PIWORK_THEME.spacing.md,
         display: 'flex', flexDirection: 'column', gap: PIWORK_THEME.spacing.sm,
@@ -96,10 +112,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
         {messages.map((msg) => {
           const isMe = msg.sender_id === currentUserId;
           return (
-            <div key={msg.id} style={{
-              display: 'flex', flexDirection: 'column',
-              alignItems: isMe ? 'flex-end' : 'flex-start',
-            }}>
+            <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
               {!isMe && (
                 <span style={{ fontSize: 11, color: PIWORK_THEME.colors.textSecondary, marginBottom: 2 }}>
                   {msg.sender_name}
@@ -123,18 +136,26 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
+      {error && (
+        <div style={{
+          margin: `0 ${PIWORK_THEME.spacing.md}px ${PIWORK_THEME.spacing.sm}px`,
+          padding: '8px 12px', backgroundColor: '#EF444420',
+          borderRadius: PIWORK_THEME.radius.md, color: '#EF4444', fontSize: 12,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          {error}
+          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 16 }}>×</button>
+        </div>
+      )}
+
       <div style={{
         backgroundColor: PIWORK_THEME.colors.bgSecondary,
         borderTop: `1px solid ${PIWORK_THEME.colors.border}`,
         padding: PIWORK_THEME.spacing.md,
-        display: 'flex', gap: PIWORK_THEME.spacing.sm, alignItems: 'center',
-        flexShrink: 0,
+        display: 'flex', gap: PIWORK_THEME.spacing.sm, alignItems: 'center', flexShrink: 0,
       }}>
         <input
-          ref={inputRef}
-          type="text"
-          value={input}
+          ref={inputRef} type="text" value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Сообщение..."

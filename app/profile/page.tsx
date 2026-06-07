@@ -7,7 +7,7 @@ import { BottomNavigation } from '@/components/bottom-navigation';
 import { BuyConnectsModal } from '@/components/buy-connects-modal';
 import {
   getUser, updateUser, getConnectsBalance,
-  getMyApplications, getMyJobsAsFreelancer,
+  getMyApplications, getMyJobsAsFreelancer, getMyPostedJobs,
   getUserReviews, getUserPortfolio,
   addPortfolioItem, deletePortfolioItem,
 } from '@/lib/workpro-api';
@@ -45,19 +45,19 @@ export default function ProfilePage() {
       getConnectsBalance(),
       getMyApplications(),
       getMyJobsAsFreelancer(),
+      getMyPostedJobs(),
       getUserReviews(currentUserId),
       getUserPortfolio(currentUserId),
-    ]).then(([userData, { balance }, appsData, freelanceData, reviewsData, portfolioData]) => {
+    ]).then(([userData, { balance }, appsData, freelanceData, postedData, reviewsData, portfolioData]) => {
       setUser(userData);
       setConnects(balance);
 
-      // Build posted jobs from accepted applications' job info + freelance jobs
-      const apps = (appsData as any).applications || [];
-      setMyPostedJobs(apps.filter((a: any) => a.posted_by === currentUserId));
+      // Jobs posted by this user (as client)
+      setMyPostedJobs((postedData as any).jobs || []);
 
       // Jobs where I'm the hired freelancer
       const fJobs = (freelanceData as any).jobs || [];
-      // If API doesn't return them, derive from accepted applications
+      const apps = (appsData as any).applications || [];
       if (fJobs.length > 0) {
         setMyFreelanceJobs(fJobs);
       } else {

@@ -11,21 +11,22 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState<OnboardingStep>(1);
 
-  const handleSkip = () => {
+  const finish = () => {
+    localStorage.setItem('onboarding_done', 'true');
     router.push('/feed');
   };
+
+  const handleSkip = () => finish();
 
   const handleNext = () => {
     if (currentStep < 4) {
       setCurrentStep((currentStep + 1) as OnboardingStep);
     } else {
-      router.push('/feed');
+      finish();
     }
   };
 
-  const handleConnect = () => {
-    router.push('/feed');
-  };
+  const handleConnect = () => finish();
 
   const handlePrevious = () => {
     if (currentStep > 1) {
