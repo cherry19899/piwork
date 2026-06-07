@@ -50,14 +50,14 @@ export default function LoginPage() {
           PiWork
         </h1>
         <p style={{ fontSize: PIWORK_THEME.typography.small.fontSize, color: PIWORK_THEME.colors.textSecondary, margin: 0, textAlign: 'center' }}>
-          Earn Pi with your skills
+          Зарабатывайте Pi своими навыками
         </p>
       </div>
 
       <div style={{ width: '100%', maxWidth: 400, marginBottom: 24 }}>
         <div style={{ height: 56 }}>
           <PiworkButton variant="primary" isLoading={isLoading} disabled={isLoading} onClick={handlePiConnect} fullWidth>
-            Connect with Pi
+            Войти через Pi
           </PiworkButton>
         </div>
       </div>
@@ -74,7 +74,7 @@ export default function LoginPage() {
       )}
 
       <p style={{ fontSize: 12, color: PIWORK_THEME.colors.textSecondary, textAlign: 'center', margin: 0, maxWidth: 400, lineHeight: 1.6 }}>
-        Requires Pi Browser and KYC verification
+        Требуется Pi Browser и KYC верификация
       </p>
 
       <div style={{

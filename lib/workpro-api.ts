@@ -307,6 +307,10 @@ export async function getUnreadChatCount(): Promise<{ count: number }> {
   return apiRequest('/api/chat/unread').catch(() => ({ count: 0 }));
 }
 
+export async function markChatRead() {
+  return apiRequest('/api/chat/read-all', { method: 'POST' }).catch(() => {});
+}
+
 export async function openDispute(escrowId: number, reason: string) {
   return apiRequest(`/api/escrows/${escrowId}/dispute`, {
     method: 'POST',

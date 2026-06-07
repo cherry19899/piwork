@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { PIWORK_THEME } from '@/lib/piwork-design-tokens';
-import { getChatMessages, sendMessage, type ChatMessage } from '@/lib/workpro-api';
+import { getChatMessages, sendMessage, markChatRead, type ChatMessage } from '@/lib/workpro-api';
 
 export default function ChatPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: roomId } = use(params);
@@ -43,6 +43,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   };
 
   useEffect(() => {
+    markChatRead();
     loadMessages();
     const interval = setInterval(loadMessages, 3000);
     return () => clearInterval(interval);

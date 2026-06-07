@@ -9,7 +9,7 @@ import {
   getUser, updateUser, getConnectsBalance,
   getMyApplications, getMyJobsAsFreelancer, getMyPostedJobs,
   getUserReviews, getUserPortfolio,
-  addPortfolioItem, deletePortfolioItem,
+  addPortfolioItem, deletePortfolioItem, deleteJob,
 } from '@/lib/workpro-api';
 
 type ProfileTab = 'info' | 'orders' | 'reviews' | 'portfolio';
@@ -99,6 +99,15 @@ export default function ProfilePage() {
     try {
       await deletePortfolioItem(itemId);
       setPortfolioItems((prev) => prev.filter((i) => i.id !== itemId));
+    } catch (_) {}
+  };
+
+  const handleDeleteJob = async (jobId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Удалить задачу?')) return;
+    try {
+      await deleteJob(jobId);
+      setMyPostedJobs((prev) => prev.filter((j) => j.id !== jobId));
     } catch (_) {}
   };
 
@@ -239,8 +248,8 @@ export default function ProfilePage() {
         </div>
 
         <div style={{ backgroundColor: PIWORK_THEME.colors.bgSecondary, padding: `${PIWORK_THEME.spacing.md}px`, textAlign: 'center' }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: PIWORK_THEME.colors.primary }}>{portfolioItems.length}</div>
-          <div style={{ fontSize: 11, color: PIWORK_THEME.colors.textSecondary, marginTop: 2 }}>Работ</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: PIWORK_THEME.colors.primary }}>{user?.balance_pi || 0}</div>
+          <div style={{ fontSize: 11, color: PIWORK_THEME.colors.textSecondary, marginTop: 2 }}>Заработано π</div>
         </div>
       </div>
 
@@ -400,7 +409,18 @@ export default function ProfilePage() {
                       }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                           <h4 style={{ fontSize: 14, fontWeight: 600, margin: 0, flex: 1, marginRight: 8 }}>{job.title}</h4>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: st.color, whiteSpace: 'nowrap' }}>{st.label}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: st.color, whiteSpace: 'nowrap' }}>{st.label}</span>
+                            {job.status === 'open' && (
+                              <button
+                                onClick={(e) => handleDeleteJob(job.id, e)}
+                                style={{
+                                  backgroundColor: 'transparent', border: 'none',
+                                  color: '#EF4444', cursor: 'pointer', fontSize: 16, padding: '0 2px', lineHeight: 1,
+                                }}
+                              >🗑</button>
+                            )}
+                          </div>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 12, color: PIWORK_THEME.colors.textSecondary }}>
                           <span>{job.budget}π</span>
