@@ -6,7 +6,7 @@ import { PIWORK_THEME } from '@/lib/piwork-design-tokens';
 import { BottomNavigation } from '@/components/bottom-navigation';
 import { PiworkButton } from '@/components/piwork-button';
 import { RatingModal } from '@/components/rating-modal';
-import { getJob, applyToJob, hireFreelancer, completeJob, submitWork, getEscrows, openDispute, type Job } from '@/lib/workpro-api';
+import { getJob, applyToJob, hireFreelancer, completeJob, submitWork, getEscrows, createEscrow, openDispute, type Job } from '@/lib/workpro-api';
 import { PiPaymentService } from '@/lib/pi-sdk-service';
 
 const CATEGORY_RU: Record<string, string> = {
@@ -108,6 +108,11 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
       });
 
       const result = await hireFreelancer(job.id, app.id, app.freelancer_id);
+
+      // Create escrow record so funds can be released on completion
+      const escrowResult: any = await createEscrow(job.id, app.freelancer_id, job.budget, payment.identifier).catch(() => null);
+      if (escrowResult?.escrow?.id) setEscrowId(escrowResult.escrow.id);
+
       setJob((prev: any) => prev ? {
         ...prev,
         status: 'in_progress',

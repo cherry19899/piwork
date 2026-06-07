@@ -4,7 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { PIWORK_THEME } from '@/lib/piwork-design-tokens';
 import { BottomNavigation } from '@/components/bottom-navigation';
-import { getUser, getUserReviews, getUserPortfolio, getChatRooms, createChatRoom } from '@/lib/workpro-api';
+import { getUser, getUserReviews, getUserPortfolio, startDirectChat } from '@/lib/workpro-api';
 
 export default function PublicProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id: userId } = use(params);
@@ -38,15 +38,9 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
     if (!currentUserId || !user) return;
     setStartingChat(true);
     try {
-      // Check if room already exists
-      const { rooms } = await getChatRooms();
-      const existing = rooms.find((r) =>
-        (r.client_id === currentUserId && r.freelancer_id === userId) ||
-        (r.client_id === userId && r.freelancer_id === currentUserId)
-      );
-      if (existing) { router.push(`/chat/${existing.id}`); return; }
-      const result = await createChatRoom(currentUserId, userId, 0);
-      router.push(`/chat/${(result as any).room?.id || (result as any).id}`);
+      const result = await startDirectChat(userId);
+      const roomId = (result as any).id || (result as any).conversation?.id;
+      if (roomId) router.push(`/chat/${roomId}`);
     } catch (_) {} finally { setStartingChat(false); }
   };
 

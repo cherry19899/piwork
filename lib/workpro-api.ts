@@ -174,6 +174,13 @@ export async function createChatRoom(clientId: string, freelancerId: string, job
   });
 }
 
+export async function startDirectChat(otherUserId: string): Promise<{ id: string; conversation?: any }> {
+  return apiRequest('/api/chat/start', {
+    method: 'POST',
+    body: JSON.stringify({ other_user_id: otherUserId }),
+  });
+}
+
 export async function getChatMessages(roomId: string): Promise<{ messages: ChatMessage[] }> {
   return apiRequest(`/api/chat/rooms/${roomId}/messages`);
 }
