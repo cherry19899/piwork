@@ -26,10 +26,10 @@ async function apiAdmin(path: string, opts: RequestInit = {}): Promise<any> {
   return data;
 }
 
-type AdminTab = 'stats' | 'users' | 'jobs' | 'logs';
+type AdminTab = 'stats' | 'users' | 'jobs' | 'escrows' | 'logs';
 
 const TAB_LABELS: Record<AdminTab, string> = {
-  stats: 'Статистика', users: 'Пользователи', jobs: 'Задачи', logs: 'Логи',
+  stats: 'Статистика', users: 'Пользователи', jobs: 'Задачи', escrows: 'Эскроу', logs: 'Логи',
 };
 
 export default function AdminPage() {
@@ -49,6 +49,9 @@ export default function AdminPage() {
 
   const [jobs, setJobs] = useState<any[]>([]);
   const [jobLoading, setJobLoading] = useState(false);
+
+  const [escrows, setEscrows] = useState<any[]>([]);
+  const [escrowsLoading, setEscrowsLoading] = useState(false);
 
   const [logs, setLogs] = useState<any[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
@@ -100,6 +103,15 @@ export default function AdminPage() {
       .finally(() => setJobLoading(false));
   }, []);
 
+  const loadEscrows = useCallback(() => {
+    setEscrowsLoading(true);
+    setError(null);
+    apiAdmin('/api/admin/escrows')
+      .then(d => setEscrows(d.escrows || []))
+      .catch(e => { setError(e.message); setEscrows([]); })
+      .finally(() => setEscrowsLoading(false));
+  }, []);
+
   const loadLogs = useCallback(() => {
     setLogsLoading(true);
     setError(null);
@@ -115,6 +127,7 @@ export default function AdminPage() {
     if (tab === 'stats') loadStats();
     if (tab === 'users') loadUsers();
     if (tab === 'jobs') loadJobs();
+    if (tab === 'escrows') loadEscrows();
     if (tab === 'logs') loadLogs();
   }, [tab, ready]);
 
@@ -338,6 +351,44 @@ export default function AdminPage() {
                 ))}
                 {jobs.length === 0 && (
                   <div style={{ textAlign: 'center', padding: S.xl, color: C.textSecondary }}>Нет задач</div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── ESCROWS ── */}
+        {tab === 'escrows' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: S.sm }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <span style={{ fontSize: 13, color: C.textSecondary }}>{escrows.length} эскроу</span>
+              <button onClick={loadEscrows} style={{ fontSize: 12, color: C.primary, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Обновить</button>
+            </div>
+            {escrowsLoading ? (
+              <div style={{ textAlign: 'center', padding: S.xl, color: C.textSecondary }}>Загрузка...</div>
+            ) : (
+              <>
+                {escrows.map((esc: any) => (
+                  <div key={esc.id} style={{ backgroundColor: C.bgSecondary, border: `1px solid ${C.border}`, borderRadius: PIWORK_THEME.radius.lg, padding: S.md }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 700, fontSize: 14 }}>#{esc.id}</span>
+                      <span style={{
+                        fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 99,
+                        backgroundColor: esc.status === 'funded' ? '#22C55E20' : esc.status === 'released' ? '#3B82F620' : esc.status === 'disputed' ? '#EF444420' : esc.status === 'refunded' ? '#F59E0B20' : `${C.border}`,
+                        color: esc.status === 'funded' ? '#22C55E' : esc.status === 'released' ? '#3B82F6' : esc.status === 'disputed' ? '#EF4444' : esc.status === 'refunded' ? '#F59E0B' : C.textSecondary,
+                      }}>{esc.status}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <span>Задача: <span style={{ color: C.textPrimary }}>{esc.job_id}</span></span>
+                      <span>Клиент: <span style={{ color: C.textPrimary }}>{esc.client_username || esc.client_id}</span></span>
+                      <span>Фрилансер: <span style={{ color: C.textPrimary }}>{esc.freelancer_username || esc.freelancer_id}</span></span>
+                      <span>Сумма: <span style={{ color: PIWORK_THEME.colors.accent, fontWeight: 700 }}>{esc.amount}π</span></span>
+                      {esc.created_at && <span>Создан: {timeAgo(esc.created_at)}</span>}
+                    </div>
+                  </div>
+                ))}
+                {escrows.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: S.xl, color: C.textSecondary }}>Нет эскроу</div>
                 )}
               </>
             )}
