@@ -78,6 +78,13 @@ function SelectInput({ value, onChange, options }: {
   );
 }
 
+function loadSetting<T>(key: string, def: T): T {
+  try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : def; } catch { return def; }
+}
+function saveSetting(key: string, value: unknown) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+}
+
 export default function SettingsPage() {
   const router = useRouter();
   const [language, setLanguage] = useState('ru');
@@ -87,7 +94,6 @@ export default function SettingsPage() {
   const [messagesNotif, setMessagesNotif] = useState(true);
   const [taskUpdatesNotif, setTaskUpdatesNotif] = useState(true);
   const [promotionsNotif, setPromotionsNotif] = useState(false);
-  const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [kycVerified, setKycVerified] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -95,6 +101,13 @@ export default function SettingsPage() {
       const u = JSON.parse(localStorage.getItem('piUser') || 'null');
       setKycVerified(u?.kyc_verified ?? null);
     } catch (_) {}
+    setLanguage(loadSetting('setting_language', 'ru'));
+    setCountry(loadSetting('setting_country', 'rus'));
+    setCurrencyDisplay(loadSetting('setting_currency', 'pi'));
+    setNewTasksNotif(loadSetting('setting_notif_tasks', true));
+    setMessagesNotif(loadSetting('setting_notif_messages', true));
+    setTaskUpdatesNotif(loadSetting('setting_notif_updates', true));
+    setPromotionsNotif(loadSetting('setting_notif_promo', false));
   }, []);
 
   // Delete account modal
@@ -141,19 +154,19 @@ export default function SettingsPage() {
       <main style={{ flex: 1, overflowY: 'auto', padding: PIWORK_THEME.spacing.lg, maxWidth: 600, margin: '0 auto', width: '100%' }}>
         <SettingsSection title="Аккаунт">
           <SettingItem label="Язык" description="Выберите язык интерфейса">
-            <SelectInput value={language} onChange={setLanguage} options={[
+            <SelectInput value={language} onChange={(v) => { setLanguage(v); saveSetting('setting_language', v); }} options={[
               { label: 'Русский', value: 'ru' }, { label: 'English', value: 'en' },
               { label: '中文', value: 'zh' }, { label: 'Español', value: 'es' }, { label: 'हिन्दी', value: 'hi' },
             ]} />
           </SettingItem>
           <SettingItem label="Страна" description="Для точного ценообразования">
-            <SelectInput value={country} onChange={setCountry} options={[
+            <SelectInput value={country} onChange={(v) => { setCountry(v); saveSetting('setting_country', v); }} options={[
               { label: 'Россия', value: 'rus' }, { label: 'Индия', value: 'ind' },
               { label: 'США', value: 'usa' }, { label: 'Китай', value: 'chn' }, { label: 'Бразилия', value: 'bra' },
             ]} />
           </SettingItem>
           <SettingItem label="Отображение валюты" divider={false}>
-            <SelectInput value={currencyDisplay} onChange={setCurrencyDisplay} options={[
+            <SelectInput value={currencyDisplay} onChange={(v) => { setCurrencyDisplay(v); saveSetting('setting_currency', v); }} options={[
               { label: 'Pi', value: 'pi' }, { label: 'USD', value: 'usd' }, { label: 'Оба', value: 'both' },
             ]} />
           </SettingItem>
@@ -161,16 +174,16 @@ export default function SettingsPage() {
 
         <SettingsSection title="Уведомления">
           <SettingItem label="Новые задачи" description="Уведомлять о доступных задачах">
-            <ToggleSwitch checked={newTasksNotif} onChange={setNewTasksNotif} />
+            <ToggleSwitch checked={newTasksNotif} onChange={(v) => { setNewTasksNotif(v); saveSetting('setting_notif_tasks', v); }} />
           </SettingItem>
           <SettingItem label="Сообщения" description="Чат и личные сообщения">
-            <ToggleSwitch checked={messagesNotif} onChange={setMessagesNotif} />
+            <ToggleSwitch checked={messagesNotif} onChange={(v) => { setMessagesNotif(v); saveSetting('setting_notif_messages', v); }} />
           </SettingItem>
           <SettingItem label="Обновления задач" description="Изменения статуса">
-            <ToggleSwitch checked={taskUpdatesNotif} onChange={setTaskUpdatesNotif} />
+            <ToggleSwitch checked={taskUpdatesNotif} onChange={(v) => { setTaskUpdatesNotif(v); saveSetting('setting_notif_updates', v); }} />
           </SettingItem>
           <SettingItem label="Акции и новости" divider={false}>
-            <ToggleSwitch checked={promotionsNotif} onChange={setPromotionsNotif} />
+            <ToggleSwitch checked={promotionsNotif} onChange={(v) => { setPromotionsNotif(v); saveSetting('setting_notif_promo', v); }} />
           </SettingItem>
         </SettingsSection>
 
@@ -184,8 +197,8 @@ export default function SettingsPage() {
               {kycVerified === null ? '...' : kycVerified ? '✓ Пройдена' : '⚠ Не пройдена'}
             </span>
           </SettingItem>
-          <SettingItem label="Биометрия" description="Вход по отпечатку или лицу" divider={false}>
-            <ToggleSwitch checked={biometricEnabled} onChange={setBiometricEnabled} />
+          <SettingItem label="Биометрия" description="Скоро — в следующей версии" divider={false}>
+            <span style={{ fontSize: 12, color: PIWORK_THEME.colors.textSecondary, fontStyle: 'italic' }}>Скоро</span>
           </SettingItem>
         </SettingsSection>
 
