@@ -100,6 +100,11 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
 
   const handleHire = async (app: any) => {
     if (!job) return;
+    // Guard: must be inside Pi Browser with SDK available
+    if (typeof window === 'undefined' || !(window as any).Pi) {
+      setHireError('Для оплаты откройте приложение в Pi Browser');
+      return;
+    }
     setHiring(app.id);
     setHireError(null);
     try {

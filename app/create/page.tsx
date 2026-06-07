@@ -164,7 +164,9 @@ export default function CreateTaskPage() {
               </label>
               <input type="text" value={formData.title} onChange={(e) => update('title', e.target.value)}
                 placeholder="Например: Нужен дизайн логотипа" style={inputStyle} maxLength={100} />
-              <span style={{ fontSize: 11, color: PIWORK_THEME.colors.textSecondary }}>{formData.title.length}/100</span>
+              <span style={{ fontSize: 11, color: formData.title.length > 0 && formData.title.length < 5 ? '#EF4444' : PIWORK_THEME.colors.textSecondary }}>
+                {formData.title.length > 0 && formData.title.length < 5 ? `Минимум 5 символов (${formData.title.length}/5)` : `${formData.title.length}/100`}
+              </span>
             </div>
             <div>
               <label style={{ fontSize: 13, fontWeight: 600, color: PIWORK_THEME.colors.textSecondary, display: 'block', marginBottom: 8 }}>
