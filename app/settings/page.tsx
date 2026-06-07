@@ -99,8 +99,9 @@ export default function SettingsPage() {
   useEffect(() => {
     try {
       const u = JSON.parse(localStorage.getItem('piUser') || 'null');
+      if (!u?.uid) { router.replace('/login'); return; }
       setKycVerified(u?.kyc_verified ?? null);
-    } catch (_) {}
+    } catch (_) { router.replace('/login'); return; }
     setLanguage(loadSetting('setting_language', 'ru'));
     setCountry(loadSetting('setting_country', 'rus'));
     setCurrencyDisplay(loadSetting('setting_currency', 'pi'));
