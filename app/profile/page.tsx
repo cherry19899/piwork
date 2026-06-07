@@ -33,6 +33,8 @@ export default function ProfilePage() {
   const [showPortfolioForm, setShowPortfolioForm] = useState(false);
   const [portfolioForm, setPortfolioForm] = useState({ title: '', description: '', url: '' });
   const [savingPortfolio, setSavingPortfolio] = useState(false);
+  const [portfolioError, setPortfolioError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const currentUserId = typeof window !== 'undefined'
     ? JSON.parse(localStorage.getItem('piUser') || '{}')?.uid || null
@@ -73,16 +75,20 @@ export default function ProfilePage() {
   const handleSave = async () => {
     if (!currentUserId) return;
     setSaving(true);
+    setSaveError(null);
     try {
       const updated = await updateUser(currentUserId, editData);
       setUser((prev: any) => ({ ...prev, ...updated }));
       setEditing(false);
-    } catch (_) {} finally { setSaving(false); }
+    } catch (e: any) {
+      setSaveError(e.message || 'Не удалось сохранить');
+    } finally { setSaving(false); }
   };
 
   const handleAddPortfolio = async () => {
     if (!portfolioForm.title.trim()) return;
     setSavingPortfolio(true);
+    setPortfolioError(null);
     try {
       const result = await addPortfolioItem({
         title: portfolioForm.title.trim(),
@@ -92,14 +98,18 @@ export default function ProfilePage() {
       setPortfolioItems((prev) => [...prev, (result as any).item || result]);
       setPortfolioForm({ title: '', description: '', url: '' });
       setShowPortfolioForm(false);
-    } catch (_) {} finally { setSavingPortfolio(false); }
+    } catch (e: any) {
+      setPortfolioError(e.message || 'Не удалось добавить работу');
+    } finally { setSavingPortfolio(false); }
   };
 
   const handleDeletePortfolio = async (itemId: number) => {
     try {
       await deletePortfolioItem(itemId);
       setPortfolioItems((prev) => prev.filter((i) => i.id !== itemId));
-    } catch (_) {}
+    } catch (e: any) {
+      setPortfolioError(e.message || 'Не удалось удалить');
+    }
   };
 
   const handleDeleteJob = async (jobId: number, e: React.MouseEvent) => {
@@ -108,7 +118,9 @@ export default function ProfilePage() {
     try {
       await deleteJob(jobId);
       setMyPostedJobs((prev) => prev.filter((j) => j.id !== jobId));
-    } catch (_) {}
+    } catch (e: any) {
+      alert(e.message || 'Не удалось удалить задачу');
+    }
   };
 
   const handleLogout = () => {
@@ -300,6 +312,11 @@ export default function ProfilePage() {
                     <option value="away">Не активен</option>
                   </select>
                 </div>
+                {saveError && (
+                  <div style={{ padding: '8px 12px', backgroundColor: '#EF444420', borderRadius: PIWORK_THEME.radius.md, color: '#EF4444', fontSize: 12 }}>
+                    {saveError}
+                  </div>
+                )}
                 <button onClick={handleSave} disabled={saving} style={{
                   padding: PIWORK_THEME.spacing.md, backgroundColor: PIWORK_THEME.colors.primary,
                   border: 'none', borderRadius: PIWORK_THEME.radius.md, color: '#fff',
@@ -620,8 +637,13 @@ export default function ProfilePage() {
                       style={inputStyle}
                     />
                   </div>
+                  {portfolioError && (
+                    <div style={{ marginBottom: 8, padding: '8px 12px', backgroundColor: '#EF444420', borderRadius: PIWORK_THEME.radius.md, color: '#EF4444', fontSize: 12 }}>
+                      {portfolioError}
+                    </div>
+                  )}
                   <div style={{ display: 'flex', gap: PIWORK_THEME.spacing.md }}>
-                    <button onClick={() => { setShowPortfolioForm(false); setPortfolioForm({ title: '', description: '', url: '' }); }} style={{
+                    <button onClick={() => { setShowPortfolioForm(false); setPortfolioForm({ title: '', description: '', url: '' }); setPortfolioError(null); }} style={{
                       flex: 1, padding: PIWORK_THEME.spacing.md, backgroundColor: 'transparent',
                       border: `1px solid ${PIWORK_THEME.colors.border}`, borderRadius: PIWORK_THEME.radius.md,
                       color: PIWORK_THEME.colors.textSecondary, cursor: 'pointer', fontSize: 14,

@@ -149,9 +149,9 @@ export class PiPaymentService {
         );
       }
 
-      // Validate metadata contains task_id if provided
-      if (request.metadata && !request.metadata.task_id) {
-        console.warn('[v0] Metadata should include task_id for proper tracking');
+      // Validate metadata contains job_id if provided
+      if (request.metadata && !request.metadata.job_id) {
+        console.warn('[v0] Metadata should include job_id for proper tracking');
       }
 
       console.log('[v0] Creating payment:', { amount: request.amount, memo: request.memo });
@@ -201,21 +201,18 @@ export class PiPaymentService {
 
           onCancel: (paymentId: string) => {
             console.log('[v0] Payment cancelled by user:', paymentId);
-            // Unlock task in database
-            this.unlockTaskInDatabase(request.metadata?.task_id);
+            this.unlockTaskInDatabase(request.metadata?.job_id);
           },
 
           onError: (error: any, payment?: any) => {
             console.error('[v0] Payment SDK error:', error, payment);
-            // Log to Sentry with full context
             this.logToSentry('payment_sdk_error', {
               error: error instanceof Error ? error.message : String(error),
               paymentId: payment?.identifier,
               amount: payment?.amount,
             });
-            // Unlock task in database on error
-            if (request.metadata?.task_id) {
-              this.unlockTaskInDatabase(request.metadata.task_id);
+            if (request.metadata?.job_id) {
+              this.unlockTaskInDatabase(request.metadata.job_id);
             }
           },
         }
@@ -232,28 +229,9 @@ export class PiPaymentService {
     }
   }
 
-  private static async unlockTaskInDatabase(taskId?: string) {
-    if (!taskId) return;
-
-    try {
-      const response = await fetch('/api/tasks/unlock', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskId }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to unlock task: ${response.statusText}`);
-      }
-
-      console.log('[v0] Task unlocked:', taskId);
-    } catch (error) {
-      console.error('[v0] Error unlocking task:', error);
-      this.logToSentry('task_unlock_error', {
-        taskId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
+  private static async unlockTaskInDatabase(jobId?: string | number) {
+    if (!jobId) return;
+    console.log('[v0] Payment cancelled/errored for job:', jobId);
   }
 
   static async approvePaymentOnServer(

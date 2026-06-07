@@ -8,7 +8,7 @@ export const PI_PAYMENT_CONFIG = {
   minAmount: 1,
   maxAmount: 10000,
   defaultCurrency: 'pi',
-  feePercentage: 2.5,
+  feePercentage: 2,
 };
 
 export const REGION_CONFIG = {

@@ -48,6 +48,10 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
   const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
   const [submittingDispute, setSubmittingDispute] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [completeError, setCompleteError] = useState<string | null>(null);
+  const [disputeError, setDisputeError] = useState<string | null>(null);
+  const [disputeSuccess, setDisputeSuccess] = useState(false);
 
   const currentUserId = typeof window !== 'undefined'
     ? JSON.parse(localStorage.getItem('piUser') || '{}')?.uid || null
@@ -150,11 +154,12 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
   const handleSubmitWork = async () => {
     if (!job) return;
     setSubmitting(true);
+    setSubmitError(null);
     try {
       await submitWork(job.id);
       setJob((prev: any) => prev ? { ...prev, status: 'submitted' } : prev);
     } catch (e: any) {
-      alert(e.message || 'Ошибка при сдаче работы');
+      setSubmitError(e.message || 'Ошибка при сдаче работы');
     } finally {
       setSubmitting(false);
     }
@@ -163,13 +168,14 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
   const handleOpenDispute = async () => {
     if (!escrowId || !disputeReason.trim()) return;
     setSubmittingDispute(true);
+    setDisputeError(null);
     try {
       await openDispute(escrowId, disputeReason.trim());
+      setDisputeSuccess(true);
       setShowDisputeModal(false);
       setDisputeReason('');
-      alert('Спор открыт. Команда поддержки рассмотрит ситуацию в течение 48 часов.');
     } catch (e: any) {
-      alert(e.message || 'Ошибка при открытии спора');
+      setDisputeError(e.message || 'Ошибка при открытии спора');
     } finally { setSubmittingDispute(false); }
   };
 
@@ -177,6 +183,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
   const handleComplete = async () => {
     if (!job) return;
     setCompleting(true);
+    setCompleteError(null);
     try {
       await completeJob(job.id);
       setJob((prev: any) => prev ? { ...prev, status: 'completed' } : prev);
@@ -187,7 +194,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
         setShowRatingModal(true);
       }
     } catch (e: any) {
-      alert(e.message || 'Ошибка при завершении');
+      setCompleteError(e.message || 'Ошибка при завершении');
     } finally {
       setCompleting(false);
     }
@@ -552,6 +559,21 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
         borderTop: `1px solid ${PIWORK_THEME.colors.border}`,
         padding: `${PIWORK_THEME.spacing.md}px`,
       }}>
+        {submitError && (
+          <div style={{ marginBottom: 8, padding: '8px 12px', backgroundColor: '#EF444420', borderRadius: PIWORK_THEME.radius.md, color: '#EF4444', fontSize: 12 }}>
+            {submitError}
+          </div>
+        )}
+        {completeError && (
+          <div style={{ marginBottom: 8, padding: '8px 12px', backgroundColor: '#EF444420', borderRadius: PIWORK_THEME.radius.md, color: '#EF4444', fontSize: 12 }}>
+            {completeError}
+          </div>
+        )}
+        {disputeSuccess && (
+          <div style={{ marginBottom: 8, padding: '8px 12px', backgroundColor: '#22C55E20', borderRadius: PIWORK_THEME.radius.md, color: '#22C55E', fontSize: 12 }}>
+            Спор открыт. Команда поддержки рассмотрит ситуацию в течение 48 часов.
+          </div>
+        )}
         {isMyJob ? (
           job.status === 'submitted' ? (
             <button
@@ -658,8 +680,13 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                 boxSizing: 'border-box', outline: 'none', marginBottom: PIWORK_THEME.spacing.md,
               }}
             />
+            {disputeError && (
+              <div style={{ marginBottom: 8, padding: '8px 12px', backgroundColor: '#EF444420', borderRadius: PIWORK_THEME.radius.md, color: '#EF4444', fontSize: 12 }}>
+                {disputeError}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: PIWORK_THEME.spacing.md }}>
-              <button onClick={() => setShowDisputeModal(false)} style={{
+              <button onClick={() => { setShowDisputeModal(false); setDisputeError(null); }} style={{
                 flex: 1, padding: PIWORK_THEME.spacing.md, backgroundColor: 'transparent',
                 border: `1px solid ${PIWORK_THEME.colors.border}`, borderRadius: PIWORK_THEME.radius.md,
                 color: PIWORK_THEME.colors.textSecondary, cursor: 'pointer', fontSize: 14,
