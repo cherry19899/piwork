@@ -297,12 +297,16 @@ export default function ProfilePage() {
                   <label style={{ fontSize: 13, fontWeight: 600, color: PIWORK_THEME.colors.textSecondary, display: 'block', marginBottom: 8 }}>О себе</label>
                   <textarea value={editData.bio} onChange={(e) => setEditData((p) => ({ ...p, bio: e.target.value }))}
                     placeholder="Расскажите о своём опыте..." rows={3}
+                    maxLength={1000}
                     style={{ ...inputStyle, resize: 'vertical' }} />
+                  <span style={{ fontSize: 11, color: editData.bio.length > 900 ? '#F59E0B' : PIWORK_THEME.colors.textSecondary }}>
+                    {editData.bio.length}/1000
+                  </span>
                 </div>
                 <div>
                   <label style={{ fontSize: 13, fontWeight: 600, color: PIWORK_THEME.colors.textSecondary, display: 'block', marginBottom: 8 }}>Навыки (через запятую)</label>
                   <input type="text" value={editData.skills} onChange={(e) => setEditData((p) => ({ ...p, skills: e.target.value }))}
-                    placeholder="Figma, JavaScript, копирайтинг..." style={inputStyle} />
+                    placeholder="Figma, JavaScript, копирайтинг..." style={inputStyle} maxLength={300} />
                 </div>
                 <div>
                   <label style={{ fontSize: 13, fontWeight: 600, color: PIWORK_THEME.colors.textSecondary, display: 'block', marginBottom: 8 }}>Доступность</label>

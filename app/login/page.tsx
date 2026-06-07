@@ -23,17 +23,9 @@ export default function LoginPage() {
       localStorage.setItem('piUser', JSON.stringify({ ...piUser, ...user }));
       if (token) localStorage.setItem('authToken', token);
 
-      // Check for incomplete Pi payments from previous session
-      if (typeof window !== 'undefined' && (window as any).Pi) {
-        try {
-          const Pi = (window as any).Pi;
-          if (Pi.openPayment) {
-            Pi.openPayment({ onReadyForServerCompletion: async (paymentId: string, txid: string) => {
-              await handleIncompletePayment(paymentId).catch(() => {});
-            }});
-          }
-        } catch (_) {}
-      }
+      // Handle incomplete Pi payments from previous session via SDK callback
+      // Pi SDK calls onReadyForServerCompletion automatically for pending payments on init
+      // No manual openPayment call needed here — SDK handles it during Pi.init()
 
       // Show onboarding to first-time users
       const isNewUser = user?.created_at && (Date.now() - new Date(user.created_at).getTime() < 60000);

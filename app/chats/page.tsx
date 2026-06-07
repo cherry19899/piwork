@@ -20,6 +20,7 @@ export default function ChatsPage() {
   const router = useRouter();
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const currentUserId = typeof window !== 'undefined'
     ? JSON.parse(localStorage.getItem('piUser') || '{}')?.uid || null
@@ -34,8 +35,8 @@ export default function ChatsPage() {
 
   useEffect(() => {
     getChatRooms()
-      .then(({ rooms }) => setRooms(rooms))
-      .catch(() => {})
+      .then(({ rooms }) => { setRooms(rooms); setError(null); })
+      .catch(() => setError('Не удалось загрузить чаты'))
       .finally(() => setIsLoading(false));
     const iv = setInterval(() => {
       getChatRooms().then(({ rooms }) => setRooms(rooms)).catch(() => {});
@@ -59,6 +60,19 @@ export default function ChatsPage() {
       </header>
 
       <main style={{ flex: 1, padding: PIWORK_THEME.spacing.md, overflowY: 'auto' }}>
+        {error && (
+          <div style={{
+            padding: '12px 16px', marginBottom: PIWORK_THEME.spacing.md,
+            backgroundColor: '#EF444420', borderRadius: PIWORK_THEME.radius.md,
+            color: '#EF4444', fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          }}>
+            {error}
+            <button onClick={() => { setError(null); setIsLoading(true); getChatRooms().then(({ rooms }) => { setRooms(rooms); }).catch(() => setError('Не удалось загрузить чаты')).finally(() => setIsLoading(false)); }}
+              style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: 0, marginLeft: 8 }}>
+              Повторить
+            </button>
+          </div>
+        )}
         {isLoading ? (
           Array.from({ length: 3 }).map((_, i) => (
             <div key={i} style={{

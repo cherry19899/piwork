@@ -172,7 +172,11 @@ export default function CreateTaskPage() {
               </label>
               <textarea value={formData.description} onChange={(e) => update('description', e.target.value)}
                 placeholder="Подробно опишите что нужно сделать..." rows={5}
+                maxLength={5000}
                 style={{ ...inputStyle, resize: 'vertical' }} />
+              <span style={{ fontSize: 11, color: formData.description.length > 4800 ? '#F59E0B' : PIWORK_THEME.colors.textSecondary }}>
+                {formData.description.length}/5000
+              </span>
             </div>
             <div>
               <label style={{ fontSize: 13, fontWeight: 600, color: PIWORK_THEME.colors.textSecondary, display: 'block', marginBottom: 8 }}>
@@ -187,7 +191,7 @@ export default function CreateTaskPage() {
                 Навыки (через запятую)
               </label>
               <input type="text" value={formData.skills} onChange={(e) => update('skills', e.target.value)}
-                placeholder="Figma, Illustrator, Photoshop" style={inputStyle} />
+                placeholder="Figma, Illustrator, Photoshop" style={inputStyle} maxLength={300} />
             </div>
           </div>
         )}
