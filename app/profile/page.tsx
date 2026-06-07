@@ -360,6 +360,17 @@ export default function ProfilePage() {
               </>
             )}
 
+            {(user?.role === 'admin' || user?.uid === 'cherry19899' || user?.id === 'cherry19899') && (
+              <button onClick={() => router.push('/admin')} style={{
+                width: '100%', padding: PIWORK_THEME.spacing.md,
+                backgroundColor: '#F59E0B20', border: `1px solid #F59E0B`,
+                borderRadius: PIWORK_THEME.radius.md, color: '#F59E0B',
+                cursor: 'pointer', fontSize: 14, fontWeight: 700,
+              }}>
+                👑 Админ-панель
+              </button>
+            )}
+
             <button onClick={() => router.push('/settings')} style={{
               width: '100%', padding: PIWORK_THEME.spacing.md, backgroundColor: 'transparent',
               border: `1px solid ${PIWORK_THEME.colors.border}`, borderRadius: PIWORK_THEME.radius.md,
