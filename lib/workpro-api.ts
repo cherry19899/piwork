@@ -242,3 +242,52 @@ export async function submitRating(toUserId: string, jobId: number, rating: numb
     body: JSON.stringify({ to_user_id: toUserId, job_id: jobId, rating, comment }),
   });
 }
+
+export async function getUserReviews(userId: string): Promise<{ reviews: any[] }> {
+  return apiRequest(`/api/reviews/user/${userId}`).catch(() => ({ reviews: [] }));
+}
+
+// ─── Jobs (extra) ──────────────────────────────────────────────
+export async function submitWork(jobId: number | string): Promise<{ success: boolean }> {
+  return apiRequest(`/api/jobs/${jobId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'submitted' }),
+  });
+}
+
+export async function getMyJobsAsFreelancer(): Promise<{ jobs: any[] }> {
+  return apiRequest('/api/jobs/as-freelancer').catch(() => ({ jobs: [] }));
+}
+
+// ─── Portfolio ──────────────────────────────────────────────
+export async function getUserPortfolio(userId: string): Promise<{ items: any[] }> {
+  return apiRequest(`/api/users/${userId}/portfolio`).catch(() => ({ items: [] }));
+}
+
+export async function addPortfolioItem(item: { title: string; description?: string; url?: string }) {
+  return apiRequest('/api/users/me/portfolio/items', {
+    method: 'POST',
+    body: JSON.stringify(item),
+  });
+}
+
+export async function deletePortfolioItem(itemId: number) {
+  return apiRequest(`/api/users/me/portfolio/items/${itemId}`, { method: 'DELETE' });
+}
+
+// ─── Connects purchase ──────────────────────────────────────────────
+export async function buyConnectsPackage(piAmount: number, connectsAmount: number, paymentId: string) {
+  return apiRequest('/api/connects/buy', {
+    method: 'POST',
+    body: JSON.stringify({ pi_amount: piAmount, amount: connectsAmount, payment_id: paymentId }),
+  });
+}
+
+// ─── Notifications ──────────────────────────────────────────────
+export async function getNotifications(): Promise<{ notifications: any[]; unread_count: number }> {
+  return apiRequest('/api/notifications');
+}
+
+export async function markNotificationsRead() {
+  return apiRequest('/api/notifications/mark-read', { method: 'POST' });
+}

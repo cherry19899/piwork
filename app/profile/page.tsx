@@ -4,21 +4,35 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { PIWORK_THEME } from '@/lib/piwork-design-tokens';
 import { BottomNavigation } from '@/components/bottom-navigation';
-import { getUser, updateUser, getConnectsBalance, getMyApplications, getJobs } from '@/lib/workpro-api';
+import { BuyConnectsModal } from '@/components/buy-connects-modal';
+import {
+  getUser, updateUser, getConnectsBalance,
+  getMyApplications, getMyJobsAsFreelancer,
+  getUserReviews, getUserPortfolio,
+  addPortfolioItem, deletePortfolioItem,
+} from '@/lib/workpro-api';
 
-type ProfileTab = 'info' | 'jobs' | 'applications';
+type ProfileTab = 'info' | 'orders' | 'reviews' | 'portfolio';
 
 export default function ProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [connects, setConnects] = useState(0);
-  const [myJobs, setMyJobs] = useState<any[]>([]);
-  const [myApplications, setMyApplications] = useState<any[]>([]);
+  const [myPostedJobs, setMyPostedJobs] = useState<any[]>([]);
+  const [myFreelanceJobs, setMyFreelanceJobs] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [portfolioItems, setPortfolioItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ProfileTab>('info');
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editData, setEditData] = useState({ bio: '', skills: '', availability: 'available' });
+  const [showBuyConnects, setShowBuyConnects] = useState(false);
+
+  // Portfolio form
+  const [showPortfolioForm, setShowPortfolioForm] = useState(false);
+  const [portfolioForm, setPortfolioForm] = useState({ title: '', description: '', url: '' });
+  const [savingPortfolio, setSavingPortfolio] = useState(false);
 
   const currentUserId = typeof window !== 'undefined'
     ? JSON.parse(localStorage.getItem('piUser') || '{}')?.uid || null
@@ -30,13 +44,28 @@ export default function ProfilePage() {
       getUser(currentUserId),
       getConnectsBalance(),
       getMyApplications(),
-      getJobs({ page: 1, limit: 50 }),
-    ]).then(([userData, { balance }, appsData, jobsData]) => {
+      getMyJobsAsFreelancer(),
+      getUserReviews(currentUserId),
+      getUserPortfolio(currentUserId),
+    ]).then(([userData, { balance }, appsData, freelanceData, reviewsData, portfolioData]) => {
       setUser(userData);
       setConnects(balance);
-      setMyApplications((appsData as any).applications || []);
-      const postedJobs = (jobsData.jobs || []).filter((j: any) => j.posted_by === currentUserId);
-      setMyJobs(postedJobs);
+
+      // Build posted jobs from accepted applications' job info + freelance jobs
+      const apps = (appsData as any).applications || [];
+      setMyPostedJobs(apps.filter((a: any) => a.posted_by === currentUserId));
+
+      // Jobs where I'm the hired freelancer
+      const fJobs = (freelanceData as any).jobs || [];
+      // If API doesn't return them, derive from accepted applications
+      if (fJobs.length > 0) {
+        setMyFreelanceJobs(fJobs);
+      } else {
+        setMyFreelanceJobs(apps.filter((a: any) => a.status === 'accepted'));
+      }
+
+      setReviews((reviewsData as any).reviews || []);
+      setPortfolioItems((portfolioData as any).items || []);
       setEditData({ bio: userData.bio || '', skills: userData.skills || '', availability: userData.availability || 'available' });
     }).catch(() => {}).finally(() => setIsLoading(false));
   }, [currentUserId]);
@@ -49,6 +78,28 @@ export default function ProfilePage() {
       setUser((prev: any) => ({ ...prev, ...updated }));
       setEditing(false);
     } catch (_) {} finally { setSaving(false); }
+  };
+
+  const handleAddPortfolio = async () => {
+    if (!portfolioForm.title.trim()) return;
+    setSavingPortfolio(true);
+    try {
+      const result = await addPortfolioItem({
+        title: portfolioForm.title.trim(),
+        description: portfolioForm.description.trim() || undefined,
+        url: portfolioForm.url.trim() || undefined,
+      });
+      setPortfolioItems((prev) => [...prev, (result as any).item || result]);
+      setPortfolioForm({ title: '', description: '', url: '' });
+      setShowPortfolioForm(false);
+    } catch (_) {} finally { setSavingPortfolio(false); }
+  };
+
+  const handleDeletePortfolio = async (itemId: number) => {
+    try {
+      await deletePortfolioItem(itemId);
+      setPortfolioItems((prev) => prev.filter((i) => i.id !== itemId));
+    } catch (_) {}
   };
 
   const handleLogout = () => {
@@ -66,14 +117,15 @@ export default function ProfilePage() {
   };
 
   const jobStatusLabel: Record<string, { label: string; color: string }> = {
-    open: { label: 'Открыта', color: '#8B5CF6' },
+    open:        { label: 'Открыта', color: '#8B5CF6' },
     in_progress: { label: 'В работе', color: '#F59E0B' },
-    completed: { label: 'Завершена', color: '#22C55E' },
+    submitted:   { label: 'На проверке', color: '#3B82F6' },
+    completed:   { label: 'Завершена', color: '#22C55E' },
   };
 
   const appStatusLabel: Record<string, { label: string; color: string }> = {
-    pending: { label: 'Ожидает', color: PIWORK_THEME.colors.textSecondary },
-    accepted: { label: '✓ Принят', color: '#22C55E' },
+    pending:  { label: 'Ожидает', color: PIWORK_THEME.colors.textSecondary },
+    accepted: { label: '✓ Выбран', color: '#22C55E' },
     rejected: { label: 'Отклонён', color: '#EF4444' },
   };
 
@@ -86,10 +138,15 @@ export default function ProfilePage() {
   }
 
   const tabs: { key: ProfileTab; label: string }[] = [
-    { key: 'info', label: 'Профиль' },
-    { key: 'jobs', label: `Задачи (${myJobs.length})` },
-    { key: 'applications', label: `Отклики (${myApplications.length})` },
+    { key: 'info',      label: 'Профиль' },
+    { key: 'orders',    label: 'Заказы' },
+    { key: 'reviews',   label: `Отзывы${reviews.length > 0 ? ` (${reviews.length})` : ''}` },
+    { key: 'portfolio', label: 'Портфолио' },
   ];
+
+  const avgRating = reviews.length > 0
+    ? (reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length).toFixed(1)
+    : null;
 
   return (
     <div style={{
@@ -115,6 +172,16 @@ export default function ProfilePage() {
             {editing ? 'Отмена' : 'Изменить'}
           </button>
         )}
+        {activeTab === 'portfolio' && !showPortfolioForm && (
+          <button onClick={() => setShowPortfolioForm(true)} style={{
+            backgroundColor: PIWORK_THEME.colors.primary,
+            border: 'none', color: '#fff',
+            padding: '8px 16px', borderRadius: PIWORK_THEME.radius.md,
+            cursor: 'pointer', fontSize: 13, fontWeight: 600,
+          }}>
+            + Добавить
+          </button>
+        )}
       </header>
 
       {/* Avatar & Name */}
@@ -136,10 +203,11 @@ export default function ProfilePage() {
         <p style={{ fontSize: 13, color: PIWORK_THEME.colors.textSecondary, margin: '4px 0 8px' }}>
           {user?.role === 'admin' ? '👑 Администратор' : '🔧 Фрилансер / Заказчик'}
         </p>
-        {user?.rating > 0 && (
+        {avgRating && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ color: '#F59E0B' }}>★</span>
-            <span style={{ fontWeight: 600 }}>{user.rating}</span>
+            <span style={{ fontWeight: 600 }}>{avgRating}</span>
+            <span style={{ fontSize: 12, color: PIWORK_THEME.colors.textSecondary }}>({reviews.length} отзывов)</span>
           </div>
         )}
       </div>
@@ -150,29 +218,42 @@ export default function ProfilePage() {
         gap: 1, backgroundColor: PIWORK_THEME.colors.border,
         borderBottom: `1px solid ${PIWORK_THEME.colors.border}`,
       }}>
-        {[
-          { label: 'Connects', value: connects },
-          { label: 'Задач', value: myJobs.length },
-          { label: 'Выполнено', value: user?.total_jobs_completed || 0 },
-        ].map(({ label, value }) => (
-          <div key={label} style={{
+        {/* Connects — clickable to buy */}
+        <button
+          onClick={() => setShowBuyConnects(true)}
+          style={{
             backgroundColor: PIWORK_THEME.colors.bgSecondary,
             padding: `${PIWORK_THEME.spacing.md}px`, textAlign: 'center',
-          }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: PIWORK_THEME.colors.primary }}>{value}</div>
-            <div style={{ fontSize: 11, color: PIWORK_THEME.colors.textSecondary, marginTop: 2 }}>{label}</div>
+            border: 'none', cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: 22, fontWeight: 700, color: PIWORK_THEME.colors.primary }}>{connects}</div>
+          <div style={{ fontSize: 11, color: PIWORK_THEME.colors.textSecondary, marginTop: 2 }}>
+            Connects <span style={{ fontSize: 9, color: PIWORK_THEME.colors.primary }}>+ купить</span>
           </div>
-        ))}
+        </button>
+
+        <div style={{ backgroundColor: PIWORK_THEME.colors.bgSecondary, padding: `${PIWORK_THEME.spacing.md}px`, textAlign: 'center' }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: PIWORK_THEME.colors.primary }}>{user?.total_jobs_completed || 0}</div>
+          <div style={{ fontSize: 11, color: PIWORK_THEME.colors.textSecondary, marginTop: 2 }}>Выполнено</div>
+        </div>
+
+        <div style={{ backgroundColor: PIWORK_THEME.colors.bgSecondary, padding: `${PIWORK_THEME.spacing.md}px`, textAlign: 'center' }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: PIWORK_THEME.colors.primary }}>{portfolioItems.length}</div>
+          <div style={{ fontSize: 11, color: PIWORK_THEME.colors.textSecondary, marginTop: 2 }}>Работ</div>
+        </div>
       </div>
 
       {/* Tabs */}
       <div style={{
         display: 'flex', borderBottom: `1px solid ${PIWORK_THEME.colors.border}`,
         backgroundColor: PIWORK_THEME.colors.bgSecondary,
+        overflowX: 'auto',
       }}>
         {tabs.map(({ key, label }) => (
           <button key={key} onClick={() => setActiveTab(key)} style={{
-            flex: 1, padding: `${PIWORK_THEME.spacing.md}px ${PIWORK_THEME.spacing.sm}px`,
+            flex: 1, minWidth: 80,
+            padding: `${PIWORK_THEME.spacing.md}px ${PIWORK_THEME.spacing.sm}px`,
             backgroundColor: 'transparent', border: 'none',
             color: activeTab === key ? PIWORK_THEME.colors.primary : PIWORK_THEME.colors.textSecondary,
             fontSize: 12, fontWeight: activeTab === key ? 700 : 500, cursor: 'pointer',
@@ -185,7 +266,8 @@ export default function ProfilePage() {
       </div>
 
       <main style={{ flex: 1, padding: PIWORK_THEME.spacing.md, overflowY: 'auto' }}>
-        {/* Profile info tab */}
+
+        {/* ── INFO TAB ── */}
         {activeTab === 'info' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: PIWORK_THEME.spacing.md }}>
             {editing ? (
@@ -269,9 +351,16 @@ export default function ProfilePage() {
               </>
             )}
 
+            <button onClick={() => router.push('/settings')} style={{
+              width: '100%', padding: PIWORK_THEME.spacing.md, backgroundColor: 'transparent',
+              border: `1px solid ${PIWORK_THEME.colors.border}`, borderRadius: PIWORK_THEME.radius.md,
+              color: PIWORK_THEME.colors.textSecondary, cursor: 'pointer', fontSize: 14,
+            }}>
+              Настройки
+            </button>
+
             <button onClick={handleLogout} style={{
-              width: '100%', marginTop: 8,
-              padding: PIWORK_THEME.spacing.md, backgroundColor: 'transparent',
+              width: '100%', padding: PIWORK_THEME.spacing.md, backgroundColor: 'transparent',
               border: `1px solid #EF4444`, borderRadius: PIWORK_THEME.radius.md,
               color: '#EF4444', cursor: 'pointer', fontSize: 14, fontWeight: 600,
             }}>
@@ -280,95 +369,316 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* My jobs tab */}
-        {activeTab === 'jobs' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: PIWORK_THEME.spacing.md }}>
-            {myJobs.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: PIWORK_THEME.spacing.xl }}>
-                <p style={{ color: PIWORK_THEME.colors.textSecondary, marginBottom: 16 }}>У вас ещё нет задач</p>
-                <button onClick={() => router.push('/create')} style={{
-                  padding: '12px 24px', backgroundColor: PIWORK_THEME.colors.primary,
-                  border: 'none', borderRadius: PIWORK_THEME.radius.md, color: '#fff',
-                  cursor: 'pointer', fontSize: 14, fontWeight: 600,
+        {/* ── ORDERS TAB ── */}
+        {activeTab === 'orders' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: PIWORK_THEME.spacing.lg }}>
+            {/* As client */}
+            <div>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: PIWORK_THEME.colors.textSecondary, margin: 0, marginBottom: PIWORK_THEME.spacing.md, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Мои задачи (как заказчик)
+              </h3>
+              {myPostedJobs.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: PIWORK_THEME.spacing.xl, backgroundColor: PIWORK_THEME.colors.bgSecondary, borderRadius: PIWORK_THEME.radius.lg }}>
+                  <p style={{ color: PIWORK_THEME.colors.textSecondary, marginBottom: 12, margin: '0 0 12px' }}>Нет активных задач</p>
+                  <button onClick={() => router.push('/create')} style={{
+                    padding: '10px 20px', backgroundColor: PIWORK_THEME.colors.primary,
+                    border: 'none', borderRadius: PIWORK_THEME.radius.md, color: '#fff',
+                    cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                  }}>
+                    Создать задачу
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: PIWORK_THEME.spacing.sm }}>
+                  {myPostedJobs.map((job: any) => {
+                    const st = jobStatusLabel[job.status] || { label: job.status, color: PIWORK_THEME.colors.textSecondary };
+                    return (
+                      <div key={job.id} onClick={() => router.push(`/task/${job.id}`)} style={{
+                        backgroundColor: PIWORK_THEME.colors.bgSecondary,
+                        border: `1px solid ${PIWORK_THEME.colors.border}`,
+                        borderRadius: PIWORK_THEME.radius.lg, padding: PIWORK_THEME.spacing.md, cursor: 'pointer',
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <h4 style={{ fontSize: 14, fontWeight: 600, margin: 0, flex: 1, marginRight: 8 }}>{job.title}</h4>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: st.color, whiteSpace: 'nowrap' }}>{st.label}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 12, color: PIWORK_THEME.colors.textSecondary }}>
+                          <span>{job.budget}π</span>
+                          <span>{job.applications} откликов</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* As freelancer */}
+            <div>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: PIWORK_THEME.colors.textSecondary, margin: 0, marginBottom: PIWORK_THEME.spacing.md, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Моя работа (как фрилансер)
+              </h3>
+              {myFreelanceJobs.length === 0 ? (
+                <div style={{
+                  textAlign: 'center', padding: PIWORK_THEME.spacing.xl,
+                  backgroundColor: PIWORK_THEME.colors.bgSecondary, borderRadius: PIWORK_THEME.radius.lg,
                 }}>
-                  Создать задачу
-                </button>
+                  <p style={{ color: PIWORK_THEME.colors.textSecondary, margin: '0 0 12px' }}>
+                    Пока нет активных проектов
+                  </p>
+                  <button onClick={() => router.push('/feed')} style={{
+                    padding: '10px 20px', backgroundColor: PIWORK_THEME.colors.primary,
+                    border: 'none', borderRadius: PIWORK_THEME.radius.md, color: '#fff',
+                    cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                  }}>
+                    Найти задачи
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: PIWORK_THEME.spacing.sm }}>
+                  {myFreelanceJobs.map((item: any) => {
+                    const jobId = item.job_id || item.id;
+                    const title = item.job_title || item.title || `Задача #${jobId}`;
+                    const status = item.job_status || item.status;
+                    const st = jobStatusLabel[status] || appStatusLabel[status] || { label: status, color: PIWORK_THEME.colors.textSecondary };
+                    return (
+                      <div key={item.id} onClick={() => router.push(`/task/${jobId}`)} style={{
+                        backgroundColor: PIWORK_THEME.colors.bgSecondary,
+                        border: `1px solid ${status === 'in_progress' || status === 'submitted' ? '#F59E0B40' : PIWORK_THEME.colors.border}`,
+                        borderRadius: PIWORK_THEME.radius.lg, padding: PIWORK_THEME.spacing.md, cursor: 'pointer',
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <h4 style={{ fontSize: 14, fontWeight: 600, margin: 0, flex: 1, marginRight: 8 }}>{title}</h4>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: st.color, whiteSpace: 'nowrap' }}>{st.label}</span>
+                        </div>
+                        {item.budget && (
+                          <p style={{ fontSize: 12, color: PIWORK_THEME.colors.textSecondary, margin: '6px 0 0' }}>{item.budget}π</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── REVIEWS TAB ── */}
+        {activeTab === 'reviews' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: PIWORK_THEME.spacing.md }}>
+            {reviews.length === 0 ? (
+              <div style={{
+                textAlign: 'center', padding: PIWORK_THEME.spacing.xl,
+                backgroundColor: PIWORK_THEME.colors.bgSecondary, borderRadius: PIWORK_THEME.radius.lg,
+              }}>
+                <p style={{ fontSize: 40, marginBottom: 12 }}>⭐</p>
+                <p style={{ color: PIWORK_THEME.colors.textSecondary, margin: 0, fontSize: 14 }}>
+                  Отзывов пока нет. Выполните задачи, чтобы получить первые отзывы.
+                </p>
               </div>
             ) : (
-              myJobs.map((job: any) => {
-                const statusInfo = jobStatusLabel[job.status] || { label: job.status, color: PIWORK_THEME.colors.textSecondary };
-                return (
-                  <div key={job.id}
-                    onClick={() => router.push(`/task/${job.id}`)}
-                    style={{
-                      backgroundColor: PIWORK_THEME.colors.bgSecondary,
-                      border: `1px solid ${PIWORK_THEME.colors.border}`,
-                      borderRadius: PIWORK_THEME.radius.lg, padding: PIWORK_THEME.spacing.md,
-                      cursor: 'pointer',
-                    }}
-                  >
+              <>
+                {/* Summary */}
+                <div style={{
+                  backgroundColor: PIWORK_THEME.colors.bgSecondary,
+                  border: `1px solid ${PIWORK_THEME.colors.border}`,
+                  borderRadius: PIWORK_THEME.radius.lg, padding: PIWORK_THEME.spacing.lg,
+                  display: 'flex', alignItems: 'center', gap: PIWORK_THEME.spacing.lg,
+                }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 40, fontWeight: 700, color: PIWORK_THEME.colors.primary }}>{avgRating}</div>
+                    <div style={{ color: '#F59E0B', fontSize: 20, letterSpacing: 2 }}>
+                      {'★'.repeat(Math.round(parseFloat(avgRating || '0')))}{'☆'.repeat(5 - Math.round(parseFloat(avgRating || '0')))}
+                    </div>
+                    <div style={{ fontSize: 12, color: PIWORK_THEME.colors.textSecondary, marginTop: 4 }}>{reviews.length} отзывов</div>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    {[5, 4, 3, 2, 1].map((star) => {
+                      const count = reviews.filter((r) => r.rating === star).length;
+                      const pct = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
+                      return (
+                        <div key={star} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontSize: 12, color: PIWORK_THEME.colors.textSecondary, minWidth: 12 }}>{star}</span>
+                          <span style={{ color: '#F59E0B', fontSize: 12 }}>★</span>
+                          <div style={{ flex: 1, height: 6, backgroundColor: PIWORK_THEME.colors.bgPrimary, borderRadius: 3 }}>
+                            <div style={{ width: `${pct}%`, height: '100%', backgroundColor: '#F59E0B', borderRadius: 3 }} />
+                          </div>
+                          <span style={{ fontSize: 11, color: PIWORK_THEME.colors.textSecondary, minWidth: 20 }}>{count}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Review list */}
+                {reviews.map((review: any) => (
+                  <div key={review.id} style={{
+                    backgroundColor: PIWORK_THEME.colors.bgSecondary,
+                    border: `1px solid ${PIWORK_THEME.colors.border}`,
+                    borderRadius: PIWORK_THEME.radius.lg, padding: PIWORK_THEME.spacing.md,
+                  }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                      <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, flex: 1, marginRight: 8 }}>{job.title}</h3>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: statusInfo.color, whiteSpace: 'nowrap' }}>
-                        {statusInfo.label}
+                      <span style={{ fontWeight: 600, fontSize: 14 }}>{review.from_username || review.reviewer_name || 'Пользователь'}</span>
+                      <span style={{ color: '#F59E0B', fontSize: 16 }}>
+                        {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: PIWORK_THEME.colors.textSecondary }}>
-                      <span>{job.budget}π</span>
-                      <span>{job.applications} откликов</span>
-                    </div>
+                    {review.comment && (
+                      <p style={{ fontSize: 13, color: PIWORK_THEME.colors.textSecondary, margin: 0, lineHeight: 1.5 }}>
+                        {review.comment}
+                      </p>
+                    )}
+                    {review.job_title && (
+                      <p style={{ fontSize: 11, color: PIWORK_THEME.colors.textTertiary, margin: '6px 0 0' }}>
+                        Задача: {review.job_title}
+                      </p>
+                    )}
                   </div>
-                );
-              })
+                ))}
+              </>
             )}
           </div>
         )}
 
-        {/* My applications tab */}
-        {activeTab === 'applications' && (
+        {/* ── PORTFOLIO TAB ── */}
+        {activeTab === 'portfolio' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: PIWORK_THEME.spacing.md }}>
-            {myApplications.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: PIWORK_THEME.spacing.xl }}>
-                <p style={{ color: PIWORK_THEME.colors.textSecondary, marginBottom: 16 }}>Вы ещё не откликались на задачи</p>
-                <button onClick={() => router.push('/feed')} style={{
-                  padding: '12px 24px', backgroundColor: PIWORK_THEME.colors.primary,
+            {showPortfolioForm && (
+              <div style={{
+                backgroundColor: PIWORK_THEME.colors.bgSecondary,
+                border: `1px solid ${PIWORK_THEME.colors.primary}`,
+                borderRadius: PIWORK_THEME.radius.lg, padding: PIWORK_THEME.spacing.lg,
+              }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, marginBottom: PIWORK_THEME.spacing.md }}>
+                  Новая работа
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: PIWORK_THEME.spacing.md }}>
+                  <div>
+                    <label style={{ fontSize: 13, fontWeight: 600, color: PIWORK_THEME.colors.textSecondary, display: 'block', marginBottom: 6 }}>
+                      Название *
+                    </label>
+                    <input
+                      type="text"
+                      value={portfolioForm.title}
+                      onChange={(e) => setPortfolioForm((p) => ({ ...p, title: e.target.value }))}
+                      placeholder="Название проекта или работы"
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 13, fontWeight: 600, color: PIWORK_THEME.colors.textSecondary, display: 'block', marginBottom: 6 }}>
+                      Описание
+                    </label>
+                    <textarea
+                      value={portfolioForm.description}
+                      onChange={(e) => setPortfolioForm((p) => ({ ...p, description: e.target.value }))}
+                      placeholder="Что вы сделали, какие технологии использовали..."
+                      rows={3}
+                      style={{ ...inputStyle, resize: 'vertical' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 13, fontWeight: 600, color: PIWORK_THEME.colors.textSecondary, display: 'block', marginBottom: 6 }}>
+                      Ссылка
+                    </label>
+                    <input
+                      type="url"
+                      value={portfolioForm.url}
+                      onChange={(e) => setPortfolioForm((p) => ({ ...p, url: e.target.value }))}
+                      placeholder="https://..."
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: PIWORK_THEME.spacing.md }}>
+                    <button onClick={() => { setShowPortfolioForm(false); setPortfolioForm({ title: '', description: '', url: '' }); }} style={{
+                      flex: 1, padding: PIWORK_THEME.spacing.md, backgroundColor: 'transparent',
+                      border: `1px solid ${PIWORK_THEME.colors.border}`, borderRadius: PIWORK_THEME.radius.md,
+                      color: PIWORK_THEME.colors.textSecondary, cursor: 'pointer', fontSize: 14,
+                    }}>
+                      Отмена
+                    </button>
+                    <button
+                      onClick={handleAddPortfolio}
+                      disabled={!portfolioForm.title.trim() || savingPortfolio}
+                      style={{
+                        flex: 2, padding: PIWORK_THEME.spacing.md,
+                        backgroundColor: portfolioForm.title.trim() ? PIWORK_THEME.colors.primary : PIWORK_THEME.colors.disabled,
+                        border: 'none', borderRadius: PIWORK_THEME.radius.md,
+                        color: '#fff', cursor: portfolioForm.title.trim() ? 'pointer' : 'not-allowed',
+                        fontSize: 14, fontWeight: 600,
+                      }}
+                    >
+                      {savingPortfolio ? 'Сохраняем...' : 'Сохранить'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {portfolioItems.length === 0 && !showPortfolioForm ? (
+              <div style={{
+                textAlign: 'center', padding: PIWORK_THEME.spacing.xl,
+                backgroundColor: PIWORK_THEME.colors.bgSecondary, borderRadius: PIWORK_THEME.radius.lg,
+              }}>
+                <p style={{ fontSize: 40, marginBottom: 12 }}>🗂️</p>
+                <p style={{ color: PIWORK_THEME.colors.textSecondary, margin: '0 0 16px', fontSize: 14 }}>
+                  Портфолио пусто. Добавьте примеры работ, чтобы заказчики могли оценить ваш опыт.
+                </p>
+                <button onClick={() => setShowPortfolioForm(true)} style={{
+                  padding: '10px 24px', backgroundColor: PIWORK_THEME.colors.primary,
                   border: 'none', borderRadius: PIWORK_THEME.radius.md, color: '#fff',
-                  cursor: 'pointer', fontSize: 14, fontWeight: 600,
+                  cursor: 'pointer', fontSize: 13, fontWeight: 600,
                 }}>
-                  Найти задачи
+                  Добавить работу
                 </button>
               </div>
             ) : (
-              myApplications.map((app: any) => {
-                const statusInfo = appStatusLabel[app.status] || { label: app.status, color: PIWORK_THEME.colors.textSecondary };
-                return (
-                  <div key={app.id}
-                    onClick={() => router.push(`/task/${app.job_id}`)}
-                    style={{
-                      backgroundColor: PIWORK_THEME.colors.bgSecondary,
-                      border: `1px solid ${app.status === 'accepted' ? '#22C55E' : PIWORK_THEME.colors.border}`,
-                      borderRadius: PIWORK_THEME.radius.lg, padding: PIWORK_THEME.spacing.md,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                      <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, flex: 1, marginRight: 8 }}>{app.job_title || `Задача #${app.job_id}`}</h3>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: statusInfo.color, whiteSpace: 'nowrap' }}>
-                        {statusInfo.label}
-                      </span>
-                    </div>
-                    {app.message && (
-                      <p style={{ fontSize: 12, color: PIWORK_THEME.colors.textSecondary, margin: 0, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any }}>
-                        {app.message}
-                      </p>
-                    )}
+              portfolioItems.map((item: any) => (
+                <div key={item.id} style={{
+                  backgroundColor: PIWORK_THEME.colors.bgSecondary,
+                  border: `1px solid ${PIWORK_THEME.colors.border}`,
+                  borderRadius: PIWORK_THEME.radius.lg, padding: PIWORK_THEME.spacing.md,
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                    <h4 style={{ fontSize: 15, fontWeight: 700, margin: 0, flex: 1, marginRight: 8 }}>{item.title}</h4>
+                    <button onClick={() => handleDeletePortfolio(item.id)} style={{
+                      background: 'none', border: 'none', color: '#EF4444',
+                      cursor: 'pointer', fontSize: 18, padding: 0, lineHeight: 1,
+                    }}>×</button>
                   </div>
-                );
-              })
+                  {item.description && (
+                    <p style={{ fontSize: 13, color: PIWORK_THEME.colors.textSecondary, margin: 0, lineHeight: 1.5, marginBottom: item.url ? 8 : 0 }}>
+                      {item.description}
+                    </p>
+                  )}
+                  {item.url && (
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        fontSize: 12, color: PIWORK_THEME.colors.primary,
+                        textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
+                      }}
+                    >
+                      Открыть ↗
+                    </a>
+                  )}
+                </div>
+              ))
             )}
           </div>
         )}
+
       </main>
+
+      {showBuyConnects && (
+        <BuyConnectsModal
+          currentBalance={connects}
+          onClose={() => setShowBuyConnects(false)}
+          onSuccess={(added) => setConnects((prev) => prev + added)}
+        />
+      )}
 
       <BottomNavigation />
     </div>

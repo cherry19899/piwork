@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { PIWORK_THEME } from '@/lib/piwork-design-tokens';
 import { BottomNavigation } from '@/components/bottom-navigation';
 import { PiworkButton } from '@/components/piwork-button';
-import { getJob, applyToJob, hireFreelancer, completeJob, type Job } from '@/lib/workpro-api';
+import { RatingModal } from '@/components/rating-modal';
+import { getJob, applyToJob, hireFreelancer, completeJob, submitWork, type Job } from '@/lib/workpro-api';
 import { PiPaymentService } from '@/lib/pi-sdk-service';
 
 type TabType = 'details' | 'applications';
@@ -13,24 +14,29 @@ type TabType = 'details' | 'applications';
 export default function TaskDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const [job, setJob] = useState<Job & { hired_freelancer_id?: string; hired_freelancer_name?: string } | null>(null);
+  const [job, setJob] = useState<Job & {
+    hired_freelancer_id?: string;
+    hired_freelancer_name?: string;
+    escrow_id?: number;
+  } | null>(null);
   const [applications, setApplications] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('details');
 
-  // Apply state
   const [applying, setApplying] = useState(false);
   const [applyMessage, setApplyMessage] = useState('');
   const [showApplyForm, setShowApplyForm] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
   const [applySuccess, setApplySuccess] = useState(false);
 
-  // Hire state
   const [hiring, setHiring] = useState<number | null>(null);
   const [hireError, setHireError] = useState<string | null>(null);
 
-  // Complete state
   const [completing, setCompleting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [ratingTarget, setRatingTarget] = useState<{ id: string; name: string } | null>(null);
 
   const currentUserId = typeof window !== 'undefined'
     ? JSON.parse(localStorage.getItem('piUser') || '{}')?.uid || null
@@ -50,6 +56,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
   const isMyJob = job?.posted_by === currentUserId;
   const alreadyApplied = applications.some((a) => a.freelancer_id === currentUserId);
   const myApplication = applications.find((a) => a.freelancer_id === currentUserId);
+  const isHiredFreelancer = !!(job as any)?.hired_freelancer_id && (job as any)?.hired_freelancer_id === currentUserId;
 
   const handleApply = async () => {
     if (!job) return;
@@ -71,9 +78,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
     if (!job) return;
     setHiring(app.id);
     setHireError(null);
-
     try {
-      // Start Pi payment for escrow
       const payment = await PiPaymentService.createPayment({
         amount: job.budget,
         memo: `Escrow: ${job.title.substring(0, 50)}`,
@@ -85,23 +90,6 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
         },
       });
 
-      if (!payment) {
-        // If Pi payment failed/cancelled, try hiring without escrow (client can send Pi manually)
-        const result = await hireFreelancer(job.id, app.id, app.freelancer_id);
-        setJob((prev: any) => prev ? {
-          ...prev,
-          status: 'in_progress',
-          hired_freelancer_id: app.freelancer_id,
-          hired_freelancer_name: app.freelancer_name,
-        } : prev);
-        setApplications((prev) => prev.map((a) =>
-          a.id === app.id ? { ...a, status: 'accepted' } : { ...a, status: a.status === 'pending' ? 'rejected' : a.status }
-        ));
-        if (result.room_id) router.push(`/chat/${result.room_id}`);
-        return;
-      }
-
-      // After payment, hire the freelancer
       const result = await hireFreelancer(job.id, app.id, app.freelancer_id);
       setJob((prev: any) => prev ? {
         ...prev,
@@ -120,12 +108,33 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
     }
   };
 
+  // Freelancer submits finished work for client review
+  const handleSubmitWork = async () => {
+    if (!job) return;
+    setSubmitting(true);
+    try {
+      await submitWork(job.id);
+      setJob((prev: any) => prev ? { ...prev, status: 'submitted' } : prev);
+    } catch (e: any) {
+      alert(e.message || 'Ошибка при сдаче работы');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Client approves work and releases escrow
   const handleComplete = async () => {
     if (!job) return;
     setCompleting(true);
     try {
       await completeJob(job.id);
       setJob((prev: any) => prev ? { ...prev, status: 'completed' } : prev);
+      const hiredId = (job as any).hired_freelancer_id;
+      const hiredName = (job as any).hired_freelancer_name;
+      if (hiredId && hiredName) {
+        setRatingTarget({ id: hiredId, name: hiredName });
+        setShowRatingModal(true);
+      }
     } catch (e: any) {
       alert(e.message || 'Ошибка при завершении');
     } finally {
@@ -134,9 +143,10 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
   };
 
   const statusColors: Record<string, { bg: string; label: string }> = {
-    open: { bg: '#8B5CF6', label: 'Открыта' },
+    open:        { bg: '#8B5CF6', label: 'Открыта' },
     in_progress: { bg: '#F59E0B', label: 'В работе' },
-    completed: { bg: '#22C55E', label: 'Завершена' },
+    submitted:   { bg: '#3B82F6', label: 'На проверке' },
+    completed:   { bg: '#22C55E', label: 'Завершена' },
   };
   const statusStyle = statusColors[job?.status || 'open'] || statusColors['open'];
 
@@ -181,7 +191,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
       </header>
 
       <main style={{ flex: 1, padding: PIWORK_THEME.spacing.lg, overflowY: 'auto' }}>
-        {/* Status badge */}
+        {/* Status badges */}
         <div style={{ display: 'flex', gap: 8, marginBottom: PIWORK_THEME.spacing.md, flexWrap: 'wrap' }}>
           <span style={{
             display: 'inline-block', backgroundColor: statusStyle.bg, color: '#fff',
@@ -199,6 +209,16 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
               fontSize: PIWORK_THEME.typography.small.fontSize, fontWeight: 700,
             }}>
               Моя задача
+            </span>
+          )}
+          {isHiredFreelancer && job.status !== 'completed' && (
+            <span style={{
+              display: 'inline-block', backgroundColor: '#22C55E20', color: '#22C55E',
+              padding: `${PIWORK_THEME.spacing.sm}px ${PIWORK_THEME.spacing.md}px`,
+              borderRadius: PIWORK_THEME.radius.md,
+              fontSize: PIWORK_THEME.typography.small.fontSize, fontWeight: 700,
+            }}>
+              Я исполнитель
             </span>
           )}
         </div>
@@ -225,19 +245,28 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
 
-        {/* Hired freelancer info (if in progress) */}
-        {job.status === 'in_progress' && (job as any).hired_freelancer_name && (
+        {/* Hired freelancer info */}
+        {job.status !== 'open' && (job as any).hired_freelancer_name && (
           <div style={{
-            backgroundColor: '#22C55E15',
-            border: `1px solid #22C55E40`,
+            backgroundColor: job.status === 'completed' ? '#22C55E10' : job.status === 'submitted' ? '#3B82F610' : '#F59E0B10',
+            border: `1px solid ${job.status === 'completed' ? '#22C55E40' : job.status === 'submitted' ? '#3B82F640' : '#F59E0B40'}`,
             borderRadius: PIWORK_THEME.radius.lg,
             padding: PIWORK_THEME.spacing.md, marginBottom: PIWORK_THEME.spacing.lg,
             display: 'flex', alignItems: 'center', gap: 12,
           }}>
-            <span style={{ fontSize: 24 }}>🤝</span>
+            <span style={{ fontSize: 24 }}>
+              {job.status === 'completed' ? '✅' : job.status === 'submitted' ? '🔍' : '🤝'}
+            </span>
             <div>
-              <p style={{ fontSize: 12, color: '#22C55E', fontWeight: 600, margin: 0 }}>Исполнитель нанят</p>
-              <p style={{ fontSize: 14, fontWeight: 600, margin: 0, marginTop: 2 }}>{(job as any).hired_freelancer_name}</p>
+              <p style={{
+                fontSize: 12, fontWeight: 600, margin: 0,
+                color: job.status === 'completed' ? '#22C55E' : job.status === 'submitted' ? '#3B82F6' : '#F59E0B',
+              }}>
+                {job.status === 'completed' ? 'Задача завершена' : job.status === 'submitted' ? 'Работа сдана на проверку' : 'Исполнитель нанят'}
+              </p>
+              <p style={{ fontSize: 14, fontWeight: 600, margin: 0, marginTop: 2, color: PIWORK_THEME.colors.textPrimary }}>
+                {(job as any).hired_freelancer_name}
+              </p>
             </div>
           </div>
         )}
@@ -343,7 +372,6 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                     </p>
                   )}
 
-                  {/* Hire button — only for job owner on pending applications */}
                   {isMyJob && app.status === 'pending' && job.status === 'open' && (
                     <button
                       onClick={() => handleHire(app)}
@@ -414,7 +442,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
         )}
       </main>
 
-      {/* Fixed action bar at bottom */}
+      {/* Fixed action bar */}
       <div style={{
         position: 'fixed', bottom: 64, left: 0, right: 0,
         backgroundColor: PIWORK_THEME.colors.bgPrimary,
@@ -422,22 +450,55 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
         padding: `${PIWORK_THEME.spacing.md}px`,
       }}>
         {isMyJob ? (
-          // Job owner actions
-          job.status === 'in_progress' ? (
+          job.status === 'submitted' ? (
+            // Client: freelancer submitted work — highlight approve button
+            <button
+              onClick={handleComplete}
+              disabled={completing}
+              style={{
+                width: '100%', height: 48, backgroundColor: '#22C55E',
+                border: 'none', borderRadius: 12, color: '#fff',
+                fontWeight: 700, fontSize: 14, cursor: completing ? 'not-allowed' : 'pointer',
+                opacity: completing ? 0.7 : 1, textTransform: 'uppercase', letterSpacing: 0.5,
+              }}
+            >
+              {completing ? 'Обработка...' : `✓ Принять работу и выплатить ${job.budget}π`}
+            </button>
+          ) : job.status === 'in_progress' ? (
+            // Client: job in progress, can force-complete
             <PiworkButton variant="primary" fullWidth onClick={handleComplete} disabled={completing}>
-              {completing ? 'Завершаем...' : '✓ Завершить задачу и выплатить'}
+              {completing ? 'Обработка...' : `Завершить и выплатить ${job.budget}π`}
             </PiworkButton>
           ) : job.status === 'completed' ? (
             <div style={{ textAlign: 'center', color: '#22C55E', fontWeight: 600, padding: 12 }}>
-              ✓ Задача завершена
+              ✓ Задача завершена · оплата отправлена
             </div>
           ) : (
             <div style={{ textAlign: 'center', color: PIWORK_THEME.colors.textSecondary, fontSize: 13, padding: 8 }}>
               Выберите исполнителя во вкладке «Отклики»
             </div>
           )
+        ) : isHiredFreelancer ? (
+          // Hired freelancer actions
+          job.status === 'in_progress' ? (
+            <PiworkButton variant="primary" fullWidth onClick={handleSubmitWork} disabled={submitting}>
+              {submitting ? 'Отправляем...' : 'Сдать работу на проверку'}
+            </PiworkButton>
+          ) : job.status === 'submitted' ? (
+            <div style={{
+              textAlign: 'center', padding: 12,
+              backgroundColor: '#3B82F620', borderRadius: PIWORK_THEME.radius.md,
+              color: '#3B82F6', fontWeight: 600, fontSize: 14,
+            }}>
+              ⏳ Ожидаем подтверждения заказчика
+            </div>
+          ) : job.status === 'completed' ? (
+            <div style={{ textAlign: 'center', color: '#22C55E', fontWeight: 600, padding: 12 }}>
+              ✅ Оплата отправлена на ваш Pi кошелёк
+            </div>
+          ) : null
         ) : (
-          // Freelancer actions
+          // Non-hired freelancer
           applySuccess || myApplication?.status === 'accepted' ? (
             <div style={{
               textAlign: 'center', padding: 12,
@@ -463,6 +524,16 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
           )
         )}
       </div>
+
+      {showRatingModal && ratingTarget && (
+        <RatingModal
+          toUserId={ratingTarget.id}
+          toUserName={ratingTarget.name}
+          jobId={job!.id}
+          onClose={() => setShowRatingModal(false)}
+          onSubmitted={() => setShowRatingModal(false)}
+        />
+      )}
 
       <BottomNavigation />
     </div>
