@@ -38,6 +38,8 @@ export function BuyConnectsModal({ currentBalance, onClose, onSuccess }: BuyConn
           onSuccess(pkg.connects);
           onClose();
         }, 1500);
+      } else if (payment === null) {
+        setError('Платёж отменён или не удался. Попробуйте ещё раз.');
       }
     } catch (e: any) {
       setError(e.message || 'Ошибка платежа. Попробуйте ещё раз.');
