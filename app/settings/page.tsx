@@ -109,6 +109,8 @@ export default function SettingsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   const handlePinNext = () => {
     if (newPin.length !== 4) { setPinError('Введите 4 цифры'); return; }
@@ -223,12 +225,12 @@ export default function SettingsPage() {
             <div style={{ color: PIWORK_THEME.colors.textSecondary }}>v1.0.0</div>
           </SettingItem>
           <SettingItem label="Условия использования" divider={true}>
-            <button style={{ backgroundColor: 'transparent', border: 'none', color: PIWORK_THEME.colors.primary, cursor: 'pointer', fontSize: 14, fontWeight: 500, padding: 0, textDecoration: 'underline' }}>
+            <button onClick={() => setShowTermsModal(true)} style={{ backgroundColor: 'transparent', border: 'none', color: PIWORK_THEME.colors.primary, cursor: 'pointer', fontSize: 14, fontWeight: 500, padding: 0, textDecoration: 'underline' }}>
               Читать
             </button>
           </SettingItem>
           <SettingItem label="Политика конфиденциальности" divider={true}>
-            <button style={{ backgroundColor: 'transparent', border: 'none', color: PIWORK_THEME.colors.primary, cursor: 'pointer', fontSize: 14, fontWeight: 500, padding: 0, textDecoration: 'underline' }}>
+            <button onClick={() => setShowPrivacyModal(true)} style={{ backgroundColor: 'transparent', border: 'none', color: PIWORK_THEME.colors.primary, cursor: 'pointer', fontSize: 14, fontWeight: 500, padding: 0, textDecoration: 'underline' }}>
               Читать
             </button>
           </SettingItem>
@@ -311,6 +313,44 @@ export default function SettingsPage() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Terms Modal */}
+      {showTermsModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, backgroundColor: PIWORK_THEME.colors.overlay, display: 'flex', alignItems: 'flex-end' }}
+          onClick={() => setShowTermsModal(false)}>
+          <div style={{ width: '100%', maxHeight: '70vh', overflowY: 'auto', backgroundColor: PIWORK_THEME.colors.bgSecondary, borderRadius: `${PIWORK_THEME.radius.xl}px ${PIWORK_THEME.radius.xl}px 0 0`, padding: PIWORK_THEME.spacing.lg, paddingBottom: 32 }}
+            onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, marginBottom: 16 }}>Условия использования</h2>
+            <div style={{ fontSize: 13, color: PIWORK_THEME.colors.textSecondary, lineHeight: 1.7 }}>
+              <p><strong style={{ color: PIWORK_THEME.colors.textPrimary }}>1. Использование платформы</strong><br />PiWork — фриланс-платформа на базе Pi Network. Используя сервис, вы соглашаетесь соблюдать правила Pi Network и настоящие условия.</p>
+              <p><strong style={{ color: PIWORK_THEME.colors.textPrimary }}>2. Комиссия</strong><br />Платформа удерживает 2% от суммы каждой сделки за посредничество и защиту платежей через эскроу.</p>
+              <p><strong style={{ color: PIWORK_THEME.colors.textPrimary }}>3. Эскроу и оплата</strong><br />Платежи проходят через систему эскроу — средства блокируются до подтверждения выполнения работы заказчиком.</p>
+              <p><strong style={{ color: PIWORK_THEME.colors.textPrimary }}>4. Споры</strong><br />В случае спора платформа выступает посредником. Решение принимается в течение 48 часов.</p>
+              <p><strong style={{ color: PIWORK_THEME.colors.textPrimary }}>5. Запрещённый контент</strong><br />Запрещается размещать задачи, нарушающие законодательство, права третьих лиц или политику Pi Network.</p>
+            </div>
+            <button onClick={() => setShowTermsModal(false)} style={{ width: '100%', marginTop: 16, padding: PIWORK_THEME.spacing.md, backgroundColor: PIWORK_THEME.colors.primary, border: 'none', borderRadius: PIWORK_THEME.radius.md, color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Закрыть</button>
+          </div>
+        </div>
+      )}
+
+      {/* Privacy Modal */}
+      {showPrivacyModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, backgroundColor: PIWORK_THEME.colors.overlay, display: 'flex', alignItems: 'flex-end' }}
+          onClick={() => setShowPrivacyModal(false)}>
+          <div style={{ width: '100%', maxHeight: '70vh', overflowY: 'auto', backgroundColor: PIWORK_THEME.colors.bgSecondary, borderRadius: `${PIWORK_THEME.radius.xl}px ${PIWORK_THEME.radius.xl}px 0 0`, padding: PIWORK_THEME.spacing.lg, paddingBottom: 32 }}
+            onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, marginBottom: 16 }}>Политика конфиденциальности</h2>
+            <div style={{ fontSize: 13, color: PIWORK_THEME.colors.textSecondary, lineHeight: 1.7 }}>
+              <p><strong style={{ color: PIWORK_THEME.colors.textPrimary }}>1. Сбор данных</strong><br />Мы собираем данные профиля Pi Network: имя пользователя и UID. Дополнительные данные (био, навыки) вы предоставляете добровольно.</p>
+              <p><strong style={{ color: PIWORK_THEME.colors.textPrimary }}>2. Использование данных</strong><br />Данные используются для предоставления услуг платформы, обработки платежей и коммуникации между участниками.</p>
+              <p><strong style={{ color: PIWORK_THEME.colors.textPrimary }}>3. Хранение</strong><br />Данные хранятся на защищённых серверах. Мы не передаём личные данные третьим лицам без вашего согласия.</p>
+              <p><strong style={{ color: PIWORK_THEME.colors.textPrimary }}>4. Удаление данных</strong><br />Вы можете удалить аккаунт и все данные в настройках. Удаление необратимо.</p>
+              <p><strong style={{ color: PIWORK_THEME.colors.textPrimary }}>5. Контакт</strong><br />По вопросам конфиденциальности обращайтесь через чат поддержки в приложении.</p>
+            </div>
+            <button onClick={() => setShowPrivacyModal(false)} style={{ width: '100%', marginTop: 16, padding: PIWORK_THEME.spacing.md, backgroundColor: PIWORK_THEME.colors.primary, border: 'none', borderRadius: PIWORK_THEME.radius.md, color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Закрыть</button>
           </div>
         </div>
       )}

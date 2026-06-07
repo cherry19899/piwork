@@ -574,7 +574,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
             </div>
           ) : job.status === 'open' ? (
             <PiworkButton variant="primary" fullWidth onClick={() => setShowApplyForm(true)}>
-              Откликнуться ({job.apply_cost || 1} connect)
+              Откликнуться ({job.apply_cost || 1} коннект)
             </PiworkButton>
           ) : (
             <div style={{ textAlign: 'center', padding: 12, color: PIWORK_THEME.colors.textSecondary, fontSize: 14 }}>

@@ -59,7 +59,7 @@ export default function CreateTaskPage() {
       const userId = JSON.parse(localStorage.getItem('piUser') || '{}')?.uid;
       if (!userId) throw new Error('Войдите в систему');
 
-      await createJob({
+      const result = await createJob({
         title: formData.title.trim(),
         description: formData.description.trim(),
         category: formData.category,
@@ -68,7 +68,8 @@ export default function CreateTaskPage() {
         deadline: formData.deadline || undefined,
       });
 
-      router.push('/feed');
+      const jobId = (result as any)?.job?.id;
+      router.push(jobId ? `/task/${jobId}` : '/feed');
     } catch (e: any) {
       setError(e.message || 'Ошибка при создании задачи');
     } finally {
@@ -228,12 +229,12 @@ export default function CreateTaskPage() {
                   <span style={{ fontWeight: 600 }}>{formData.budget}π</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span style={{ color: PIWORK_THEME.colors.textSecondary, fontSize: 14 }}>Комиссия (2.5%)</span>
-                  <span style={{ color: PIWORK_THEME.colors.textSecondary }}>{(parseFloat(formData.budget) * 0.025).toFixed(2)}π</span>
+                  <span style={{ color: PIWORK_THEME.colors.textSecondary, fontSize: 14 }}>Комиссия (2%)</span>
+                  <span style={{ color: PIWORK_THEME.colors.textSecondary }}>{(parseFloat(formData.budget) * 0.02).toFixed(2)}π</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: `1px solid ${PIWORK_THEME.colors.border}`, paddingTop: 8 }}>
                   <span style={{ fontWeight: 700 }}>Фрилансер получит</span>
-                  <span style={{ fontWeight: 700, color: PIWORK_THEME.colors.primary }}>{(parseFloat(formData.budget) * 0.975).toFixed(2)}π</span>
+                  <span style={{ fontWeight: 700, color: PIWORK_THEME.colors.primary }}>{(parseFloat(formData.budget) * 0.98).toFixed(2)}π</span>
                 </div>
               </div>
             )}

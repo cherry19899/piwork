@@ -3,12 +3,13 @@
 import { useState, useRef, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { PIWORK_THEME } from '@/lib/piwork-design-tokens';
-import { getChatMessages, sendMessage, markChatRead, type ChatMessage } from '@/lib/workpro-api';
+import { getChatMessages, sendMessage, markChatRead, getChatRoom, type ChatMessage } from '@/lib/workpro-api';
 
 export default function ChatPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: roomId } = use(params);
   const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [otherUserName, setOtherUserName] = useState<string>('');
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +46,12 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   useEffect(() => {
     markChatRead();
     loadMessages();
+    getChatRoom(roomId).then(({ room }) => {
+      if (!room) return;
+      const isClient = room.client_id === currentUserId;
+      const name = isClient ? room.freelancer_username : room.client_username;
+      if (name) setOtherUserName(name);
+    }).catch(() => {});
     const interval = setInterval(loadMessages, 3000);
     return () => clearInterval(interval);
   }, [roomId]);
@@ -94,9 +101,9 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
           color: PIWORK_THEME.colors.primary, fontSize: 24, cursor: 'pointer', padding: 0,
         }}>←</button>
         <div>
-          <h1 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Чат</h1>
+          <h1 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>{otherUserName || 'Чат'}</h1>
           <p style={{ fontSize: 12, color: PIWORK_THEME.colors.textSecondary, margin: 0 }}>
-            {messages.length} сообщений
+            {messages.length > 0 ? `${messages.length} сообщений` : 'онлайн'}
           </p>
         </div>
       </header>

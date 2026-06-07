@@ -25,7 +25,12 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     getNotifications()
-      .then(({ notifications: n }) => setNotifications(n || []))
+      .then(({ notifications: n }) => {
+        setNotifications(n || []);
+        if ((n || []).some((x: any) => !x.is_read)) {
+          markNotificationsRead().catch(() => {});
+        }
+      })
       .catch(() => setNotifications([]))
       .finally(() => setIsLoading(false));
   }, []);

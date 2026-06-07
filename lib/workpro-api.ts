@@ -167,6 +167,10 @@ export async function getChatRooms(): Promise<{ rooms: ChatRoom[] }> {
   return apiRequest('/api/chat/rooms');
 }
 
+export async function getChatRoom(roomId: string): Promise<{ room: any }> {
+  return apiRequest(`/api/chat/rooms/${roomId}`);
+}
+
 export async function createChatRoom(clientId: string, freelancerId: string, jobId: number) {
   return apiRequest('/api/chat/rooms', {
     method: 'POST',

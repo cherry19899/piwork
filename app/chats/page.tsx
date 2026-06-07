@@ -28,6 +28,10 @@ export default function ChatsPage() {
       .then(({ rooms }) => setRooms(rooms))
       .catch(() => {})
       .finally(() => setIsLoading(false));
+    const iv = setInterval(() => {
+      getChatRooms().then(({ rooms }) => setRooms(rooms)).catch(() => {});
+    }, 15000);
+    return () => clearInterval(iv);
   }, []);
 
   return (
