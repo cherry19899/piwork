@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { PIWORK_THEME } from '@/lib/piwork-design-tokens';
 import { BottomNavigation } from '@/components/bottom-navigation';
@@ -88,6 +88,14 @@ export default function SettingsPage() {
   const [taskUpdatesNotif, setTaskUpdatesNotif] = useState(true);
   const [promotionsNotif, setPromotionsNotif] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [kycVerified, setKycVerified] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('piUser') || 'null');
+      setKycVerified(u?.kyc_verified ?? null);
+    } catch (_) {}
+  }, []);
 
   // PIN modal
   const [showPinModal, setShowPinModal] = useState(false);
@@ -188,6 +196,15 @@ export default function SettingsPage() {
         </SettingsSection>
 
         <SettingsSection title="Безопасность">
+          <SettingItem label="KYC верификация" description="Статус проверки личности">
+            <span style={{
+              fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 8,
+              backgroundColor: kycVerified ? '#22C55E20' : '#F59E0B20',
+              color: kycVerified ? '#22C55E' : '#F59E0B',
+            }}>
+              {kycVerified === null ? '...' : kycVerified ? '✓ Пройдена' : '⚠ Не пройдена'}
+            </span>
+          </SettingItem>
           <SettingItem label="Изменить PIN" description="Обновить 4-значный PIN-код">
             <button onClick={() => setShowPinModal(true)} style={{
               padding: `${PIWORK_THEME.spacing.sm}px ${PIWORK_THEME.spacing.md}px`,

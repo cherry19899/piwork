@@ -2,14 +2,20 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { PIWORK_THEME } from '@/lib/piwork-design-tokens';
 import { BottomNavigation } from '@/components/bottom-navigation';
-import { getJobs, type Job } from '@/lib/workpro-api';
+import { getJobs, getNotifications, type Job } from '@/lib/workpro-api';
 
 const categories = ['All', 'Design', 'Writing', 'Data', 'Audio', 'Video', 'Other'];
+const CATEGORY_RU: Record<string, string> = {
+  All: 'Все', Design: 'Дизайн', Writing: 'Тексты',
+  Data: 'Данные', Audio: 'Аудио', Video: 'Видео', Other: 'Другое',
+};
 const PAGE_SIZE = 20;
 
 export default function FeedPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -20,6 +26,7 @@ export default function FeedPage() {
   const [hasMore, setHasMore] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
   const mainRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef(0);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -48,6 +55,17 @@ export default function FeedPage() {
   }, []);
 
   useEffect(() => { loadJobs(); }, [loadJobs]);
+
+  useEffect(() => {
+    const fetchNotifCount = () => {
+      const uid = (() => { try { return JSON.parse(localStorage.getItem('piUser') || 'null')?.uid; } catch { return null; } })();
+      if (!uid) return;
+      getNotifications().then(({ unread_count }) => setUnreadNotifs(unread_count || 0)).catch(() => {});
+    };
+    fetchNotifCount();
+    const iv = setInterval(fetchNotifCount, 60000);
+    return () => clearInterval(iv);
+  }, []);
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
@@ -101,9 +119,24 @@ export default function FeedPage() {
         borderBottom: `1px solid ${PIWORK_THEME.colors.border}`,
         padding: `${PIWORK_THEME.spacing.md}px`,
       }}>
-        <h1 style={{ fontSize: PIWORK_THEME.typography.h1.fontSize, fontWeight: 700, margin: 0, marginBottom: PIWORK_THEME.spacing.md }}>
-          Лента
-        </h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: PIWORK_THEME.spacing.md }}>
+          <h1 style={{ fontSize: PIWORK_THEME.typography.h1.fontSize, fontWeight: 700, margin: 0 }}>Лента</h1>
+          <button
+            onClick={() => router.push('/notifications')}
+            style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, padding: 4 }}
+          >
+            🔔
+            {unreadNotifs > 0 && (
+              <span style={{
+                position: 'absolute', top: 0, right: 0,
+                minWidth: 16, height: 16, backgroundColor: '#EF4444',
+                borderRadius: 8, fontSize: 9, fontWeight: 700, color: '#fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: `2px solid ${PIWORK_THEME.colors.bgSecondary}`, padding: '0 2px',
+              }}>{unreadNotifs > 99 ? '99+' : unreadNotifs}</span>
+            )}
+          </button>
+        </div>
         <div style={{
           display: 'flex', alignItems: 'center', height: 48,
           backgroundColor: PIWORK_THEME.colors.bgPrimary,
@@ -137,7 +170,7 @@ export default function FeedPage() {
               border: selectedCategory === cat ? 'none' : `1px solid ${PIWORK_THEME.colors.border}`,
               borderRadius: PIWORK_THEME.radius.md, fontSize: PIWORK_THEME.typography.small.fontSize,
               fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-            }}>{cat}</button>
+            }}>{CATEGORY_RU[cat] || cat}</button>
           ))}
         </div>
       </header>
@@ -205,7 +238,7 @@ export default function FeedPage() {
                       fontSize: 11, padding: '2px 8px',
                       backgroundColor: PIWORK_THEME.colors.bgPrimary,
                       color: PIWORK_THEME.colors.textSecondary, borderRadius: PIWORK_THEME.radius.sm, whiteSpace: 'nowrap',
-                    }}>{job.category}</span>
+                    }}>{CATEGORY_RU[job.category] || job.category}</span>
                   </div>
                   <p style={{
                     fontSize: PIWORK_THEME.typography.small.fontSize, color: PIWORK_THEME.colors.textSecondary,

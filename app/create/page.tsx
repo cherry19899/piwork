@@ -9,6 +9,10 @@ import { createJob } from '@/lib/workpro-api';
 
 const steps = ['Детали', 'Бюджет', 'Подтверждение'];
 const categoryOptions = ['Design', 'Writing', 'Data', 'Audio', 'Video', 'Other'];
+const CATEGORY_RU: Record<string, string> = {
+  Design: 'Дизайн', Writing: 'Тексты', Data: 'Данные',
+  Audio: 'Аудио', Video: 'Видео', Other: 'Другое',
+};
 
 export default function CreateTaskPage() {
   const router = useRouter();
@@ -167,7 +171,7 @@ export default function CreateTaskPage() {
                 Категория
               </label>
               <select value={formData.category} onChange={(e) => update('category', e.target.value)} style={inputStyle}>
-                {categoryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                {categoryOptions.map((c) => <option key={c} value={c}>{CATEGORY_RU[c] || c}</option>)}
               </select>
             </div>
             <div>
@@ -241,7 +245,7 @@ export default function CreateTaskPage() {
             <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, marginBottom: PIWORK_THEME.spacing.md }}>Проверьте данные</h2>
             {[
               { label: 'Название', value: formData.title },
-              { label: 'Категория', value: formData.category },
+              { label: 'Категория', value: CATEGORY_RU[formData.category] || formData.category },
               { label: 'Бюджет', value: `${formData.budget}π` },
               { label: 'Навыки', value: formData.skills || '—' },
               { label: 'Дедлайн', value: formData.deadline || '—' },

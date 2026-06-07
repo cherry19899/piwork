@@ -29,7 +29,7 @@ export function OfflineBanner() {
         animation: 'slideInDown 300ms ease-out',
       }}
     >
-      📡 You&apos;re offline • Cached data visible • Messages will be sent when online
+      📡 Нет соединения · Показаны кэшированные данные · Сообщения отправятся при подключении
     </div>
   );
 }

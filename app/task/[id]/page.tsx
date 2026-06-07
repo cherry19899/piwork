@@ -9,6 +9,11 @@ import { RatingModal } from '@/components/rating-modal';
 import { getJob, applyToJob, hireFreelancer, completeJob, submitWork, getEscrows, openDispute, type Job } from '@/lib/workpro-api';
 import { PiPaymentService } from '@/lib/pi-sdk-service';
 
+const CATEGORY_RU: Record<string, string> = {
+  Design: 'Дизайн', Writing: 'Тексты', Data: 'Данные',
+  Audio: 'Аудио', Video: 'Видео', Other: 'Другое',
+};
+
 type TabType = 'details' | 'applications';
 
 export default function TaskDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -266,7 +271,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
           </div>
           <div style={{ textAlign: 'right' }}>
             <p style={{ fontSize: 12, color: PIWORK_THEME.colors.textSecondary, margin: 0, marginBottom: 4 }}>Категория</p>
-            <span style={{ fontSize: 16, fontWeight: 600 }}>{job.category}</span>
+            <span style={{ fontSize: 16, fontWeight: 600 }}>{CATEGORY_RU[job.category] || job.category}</span>
           </div>
         </div>
 
