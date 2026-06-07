@@ -90,6 +90,11 @@ export default function AdminPage() {
     setUsers(prev => prev.map(u => u.id === id ? { ...u, is_blocked: !blocked } : u));
   };
 
+  const toggleAdmin = async (id: string, isAdminRole: boolean) => {
+    await apiAdmin(`/api/admin/users/${id}/${isAdminRole ? 'remove-admin' : 'make-admin'}`, { method: 'POST' });
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, role: isAdminRole ? 'freelancer' : 'admin' } : u));
+  };
+
   const grantConnects = async (userId: string) => {
     setGrantingUser(userId);
     await apiAdmin(`/api/admin/users/${userId}/grant-connects`, {
@@ -215,10 +220,16 @@ export default function AdminPage() {
                           {grantingUser === u.id ? '...' : `+${grantAmount}🔗`}
                         </button>
                         {u.id !== 'cherry19899' && u.id !== 'pi_cherry19899' && (
-                          <button onClick={() => blockUser(u.id, u.is_blocked)}
-                            style={{ padding: '6px 10px', backgroundColor: u.is_blocked ? '#22C55E20' : '#EF444420', border: 'none', borderRadius: 6, color: u.is_blocked ? '#22C55E' : '#EF4444', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
-                            {u.is_blocked ? 'Разблок' : 'Блок'}
-                          </button>
+                          <>
+                            <button onClick={() => toggleAdmin(u.id, u.role === 'admin')}
+                              style={{ padding: '6px 10px', backgroundColor: u.role === 'admin' ? '#F59E0B20' : `${PIWORK_THEME.colors.bgPrimary}`, border: `1px solid ${u.role === 'admin' ? '#F59E0B' : PIWORK_THEME.colors.border}`, borderRadius: 6, color: u.role === 'admin' ? '#F59E0B' : PIWORK_THEME.colors.textSecondary, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                              {u.role === 'admin' ? '👑 Снять' : '👑'}
+                            </button>
+                            <button onClick={() => blockUser(u.id, u.is_blocked)}
+                              style={{ padding: '6px 10px', backgroundColor: u.is_blocked ? '#22C55E20' : '#EF444420', border: 'none', borderRadius: 6, color: u.is_blocked ? '#22C55E' : '#EF4444', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                              {u.is_blocked ? 'Разблок' : 'Блок'}
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
