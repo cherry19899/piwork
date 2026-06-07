@@ -1,4 +1,3 @@
-import './i18n';
 import type React from "react";
 import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
