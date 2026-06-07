@@ -79,6 +79,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
 
   const handleApply = async () => {
     if (!job) return;
+    if (!currentUserId) { router.push('/login'); return; }
     setApplying(true);
     setApplyError(null);
     try {

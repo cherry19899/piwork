@@ -189,6 +189,23 @@ export default function SettingsPage() {
           </SettingItem>
         </SettingsSection>
 
+        <SettingsSection title="Аккаунт — выход">
+          <SettingItem label="Выйти из аккаунта" description="Вы можете войти снова через Pi Browser" divider={false}>
+            <button onClick={() => {
+              localStorage.removeItem('piUser');
+              localStorage.removeItem('authToken');
+              router.push('/login');
+            }} style={{
+              padding: `${PIWORK_THEME.spacing.sm}px ${PIWORK_THEME.spacing.md}px`,
+              backgroundColor: 'transparent',
+              border: `1px solid ${PIWORK_THEME.colors.border}`,
+              borderRadius: PIWORK_THEME.radius.md,
+              color: PIWORK_THEME.colors.textSecondary,
+              fontSize: PIWORK_THEME.typography.small.fontSize, fontWeight: 600, cursor: 'pointer',
+            }}>Выйти</button>
+          </SettingItem>
+        </SettingsSection>
+
         <SettingsSection title="О приложении">
           <SettingItem label="Версия" divider={true}>
             <div style={{ color: PIWORK_THEME.colors.textSecondary }}>v1.0.0</div>

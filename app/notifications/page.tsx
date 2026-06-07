@@ -24,6 +24,13 @@ export default function NotificationsPage() {
   const [marking, setMarking] = useState(false);
 
   useEffect(() => {
+    try {
+      const uid = JSON.parse(localStorage.getItem('piUser') || 'null')?.uid;
+      if (!uid) { router.replace('/login'); return; }
+    } catch { router.replace('/login'); return; }
+  }, [router]);
+
+  useEffect(() => {
     getNotifications()
       .then(({ notifications: n }) => {
         setNotifications(n || []);

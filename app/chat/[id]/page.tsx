@@ -21,6 +21,13 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     ? JSON.parse(localStorage.getItem('piUser') || '{}')?.uid || null
     : null;
 
+  useEffect(() => {
+    try {
+      const uid = JSON.parse(localStorage.getItem('piUser') || 'null')?.uid;
+      if (!uid) { router.replace('/login'); return; }
+    } catch { router.replace('/login'); return; }
+  }, [router]);
+
   // Merge by ID to prevent duplicates from optimistic updates
   const mergeMessages = (prev: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] => {
     const map = new Map(incoming.map(m => [m.id, m]));

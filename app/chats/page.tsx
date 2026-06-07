@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { PIWORK_THEME } from '@/lib/piwork-design-tokens';
 import { BottomNavigation } from '@/components/bottom-navigation';
 import { getChatRooms, type ChatRoom } from '@/lib/workpro-api';
@@ -16,12 +17,20 @@ function timeAgo(dateStr: string | null) {
 }
 
 export default function ChatsPage() {
+  const router = useRouter();
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const currentUserId = typeof window !== 'undefined'
     ? JSON.parse(localStorage.getItem('piUser') || '{}')?.uid || null
     : null;
+
+  useEffect(() => {
+    try {
+      const uid = JSON.parse(localStorage.getItem('piUser') || 'null')?.uid;
+      if (!uid) { router.replace('/login'); return; }
+    } catch { router.replace('/login'); return; }
+  }, [router]);
 
   useEffect(() => {
     getChatRooms()
