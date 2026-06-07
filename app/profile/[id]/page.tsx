@@ -14,6 +14,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
   const [portfolio, setPortfolio] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [startingChat, setStartingChat] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'reviews' | 'portfolio'>('info');
 
   const currentUserId = typeof window !== 'undefined'
@@ -37,11 +38,14 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
   const handleStartChat = async () => {
     if (!currentUserId || !user) return;
     setStartingChat(true);
+    setChatError(null);
     try {
       const result = await startDirectChat(userId);
       const roomId = (result as any).id || (result as any).conversation?.id;
       if (roomId) router.push(`/chat/${roomId}`);
-    } catch (_) {} finally { setStartingChat(false); }
+    } catch (e: any) {
+      setChatError(e.message || 'Не удалось открыть чат');
+    } finally { setStartingChat(false); }
   };
 
   const avgRating = reviews.length > 0
@@ -221,7 +225,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
                 <div key={item.id} style={{ backgroundColor: PIWORK_THEME.colors.bgSecondary, border: `1px solid ${PIWORK_THEME.colors.border}`, borderRadius: PIWORK_THEME.radius.lg, padding: PIWORK_THEME.spacing.md }}>
                   <h4 style={{ fontSize: 15, fontWeight: 700, margin: 0, marginBottom: 6 }}>{item.title}</h4>
                   {item.description && <p style={{ fontSize: 13, color: PIWORK_THEME.colors.textSecondary, margin: 0, lineHeight: 1.5, marginBottom: item.image_url ? 8 : 0 }}>{item.description}</p>}
-                  {item.image_url && (
+                  {item.image_url && /^https?:\/\//.test(item.image_url) && (
                     <a href={item.image_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: PIWORK_THEME.colors.primary, textDecoration: 'none' }}>
                       Открыть ↗
                     </a>
@@ -241,6 +245,11 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
           borderTop: `1px solid ${PIWORK_THEME.colors.border}`,
           padding: `${PIWORK_THEME.spacing.md}px`,
         }}>
+          {chatError && (
+            <div style={{ marginBottom: 8, padding: '8px 12px', backgroundColor: '#EF444420', borderRadius: PIWORK_THEME.radius.md, color: '#EF4444', fontSize: 12 }}>
+              {chatError}
+            </div>
+          )}
           <button
             onClick={handleStartChat}
             disabled={startingChat}

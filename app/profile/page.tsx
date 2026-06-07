@@ -704,7 +704,7 @@ export default function ProfilePage() {
                       {item.description}
                     </p>
                   )}
-                  {item.url && (
+                  {item.url && /^https?:\/\//.test(item.url) && (
                     <a
                       href={item.url}
                       target="_blank"
