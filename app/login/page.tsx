@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { PiworkButton } from '@/components/piwork-button';
 import { PiPaymentService } from '@/lib/pi-sdk-service';
 import { PIWORK_THEME } from '@/lib/piwork-design-tokens';
-import { loginUser } from '@/lib/workpro-api';
+import { loginUser, handleIncompletePayment } from '@/lib/workpro-api';
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -22,6 +22,18 @@ export default function LoginPage() {
 
       localStorage.setItem('piUser', JSON.stringify({ ...piUser, ...user }));
       if (token) localStorage.setItem('authToken', token);
+
+      // Check for incomplete Pi payments from previous session
+      if (typeof window !== 'undefined' && (window as any).Pi) {
+        try {
+          const Pi = (window as any).Pi;
+          if (Pi.openPayment) {
+            Pi.openPayment({ onReadyForServerCompletion: async (paymentId: string, txid: string) => {
+              await handleIncompletePayment(paymentId).catch(() => {});
+            }});
+          }
+        } catch (_) {}
+      }
 
       // Show onboarding to first-time users
       const isNewUser = user?.created_at && (Date.now() - new Date(user.created_at).getTime() < 60000);

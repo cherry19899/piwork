@@ -36,6 +36,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
 
   const [hiring, setHiring] = useState<number | null>(null);
   const [hireError, setHireError] = useState<string | null>(null);
+  const [paymentStep, setPaymentStep] = useState<'idle' | 'payment' | 'hiring'>('idle');
 
   const [completing, setCompleting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -96,6 +97,8 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
     setHiring(app.id);
     setHireError(null);
     try {
+      // Step 1: Pi payment (SDK handles approve/complete callbacks internally)
+      setPaymentStep('payment');
       const payment = await PiPaymentService.createPayment({
         amount: job.budget,
         memo: `Escrow: ${job.title.substring(0, 50)}`,
@@ -104,14 +107,24 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
           job_id: job.id,
           freelancer_id: app.freelancer_id,
           application_id: app.id,
+          amount: job.budget,
         },
       });
 
+      // Step 2: Hire freelancer (creates chat room, updates job status)
+      setPaymentStep('hiring');
       const result = await hireFreelancer(job.id, app.id, app.freelancer_id);
 
-      // Create escrow record so funds can be released on completion
-      const escrowResult: any = await createEscrow(job.id, app.freelancer_id, job.budget, payment.identifier).catch(() => null);
-      if (escrowResult?.escrow?.id) setEscrowId(escrowResult.escrow.id);
+      // Step 3: Ensure escrow record exists (payment complete may already have created it)
+      const escrowResult: any = await createEscrow(job.id, app.freelancer_id, job.budget, payment?.identifier).catch(() => null);
+      if (escrowResult?.escrow?.id) {
+        setEscrowId(escrowResult.escrow.id);
+      } else {
+        // Fetch existing escrow created by payment callback
+        const escrows = await getEscrows().catch(() => ({ escrows: [] })) as any;
+        const e = (escrows.escrows || []).find((e: any) => String(e.job_id) === String(job.id));
+        if (e) setEscrowId(e.id);
+      }
 
       setJob((prev: any) => prev ? {
         ...prev,
@@ -127,6 +140,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
       setHireError(e.message || 'Ошибка при найме');
     } finally {
       setHiring(null);
+      setPaymentStep('idle');
     }
   };
 
@@ -254,6 +268,16 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
               fontSize: PIWORK_THEME.typography.small.fontSize, fontWeight: 700,
             }}>
               Я исполнитель
+            </span>
+          )}
+          {escrowId && ['in_progress', 'submitted'].includes(job.status) && (
+            <span style={{
+              display: 'inline-block', backgroundColor: '#3B82F620', color: '#3B82F6',
+              padding: `${PIWORK_THEME.spacing.sm}px ${PIWORK_THEME.spacing.md}px`,
+              borderRadius: PIWORK_THEME.radius.md,
+              fontSize: PIWORK_THEME.typography.small.fontSize, fontWeight: 700,
+            }}>
+              🔒 {job.budget}π в эскроу
             </span>
           )}
         </div>
@@ -442,7 +466,11 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                         marginTop: app.message ? 0 : 8,
                       }}
                     >
-                      {hiring === app.id ? 'Обработка...' : `Нанять ${app.freelancer_name} (${job.budget}π эскроу)`}
+                      {hiring === app.id
+                        ? paymentStep === 'payment' ? '💳 Оплата Pi...'
+                        : paymentStep === 'hiring' ? '🤝 Оформляем...'
+                        : 'Обработка...'
+                        : `Нанять ${app.freelancer_name} (${job.budget}π в эскроу)`}
                     </button>
                   )}
                 </div>
@@ -510,7 +538,6 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
       }}>
         {isMyJob ? (
           job.status === 'submitted' ? (
-            // Client: freelancer submitted work — highlight approve button
             <button
               onClick={handleComplete}
               disabled={completing}
@@ -521,12 +548,11 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                 opacity: completing ? 0.7 : 1, textTransform: 'uppercase', letterSpacing: 0.5,
               }}
             >
-              {completing ? 'Обработка...' : `✓ Принять работу и выплатить ${job.budget}π`}
+              {completing ? 'Обработка...' : `✓ Принять работу — выплатить ${(job.budget * 0.98).toFixed(2)}π`}
             </button>
           ) : job.status === 'in_progress' ? (
-            // Client: job in progress, can force-complete
             <PiworkButton variant="primary" fullWidth onClick={handleComplete} disabled={completing}>
-              {completing ? 'Обработка...' : `Завершить и выплатить ${job.budget}π`}
+              {completing ? 'Обработка...' : `Завершить — выплатить ${(job.budget * 0.98).toFixed(2)}π`}
             </PiworkButton>
           ) : job.status === 'completed' ? (
             <div style={{ textAlign: 'center', color: '#22C55E', fontWeight: 600, padding: 12 }}>
@@ -538,11 +564,15 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
             </div>
           )
         ) : isHiredFreelancer ? (
-          // Hired freelancer actions
           job.status === 'in_progress' ? (
-            <PiworkButton variant="primary" fullWidth onClick={handleSubmitWork} disabled={submitting}>
-              {submitting ? 'Отправляем...' : 'Сдать работу на проверку'}
-            </PiworkButton>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <PiworkButton variant="primary" fullWidth onClick={handleSubmitWork} disabled={submitting}>
+                {submitting ? 'Отправляем...' : 'Сдать работу на проверку'}
+              </PiworkButton>
+              <div style={{ textAlign: 'center', fontSize: 11, color: PIWORK_THEME.colors.textSecondary }}>
+                После принятия вы получите {(job.budget * 0.98).toFixed(2)}π (комиссия 2%)
+              </div>
+            </div>
           ) : job.status === 'submitted' ? (
             <div style={{
               textAlign: 'center', padding: 12,
@@ -553,7 +583,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
             </div>
           ) : job.status === 'completed' ? (
             <div style={{ textAlign: 'center', color: '#22C55E', fontWeight: 600, padding: 12 }}>
-              ✅ Оплата отправлена на ваш Pi кошелёк
+              ✅ {(job.budget * 0.98).toFixed(2)}π зачислено на счёт
             </div>
           ) : null
         ) : (
