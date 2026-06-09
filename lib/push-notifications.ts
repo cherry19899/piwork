@@ -57,18 +57,25 @@ export async function requestNotificationPermission(): Promise<string | null> {
   return null;
 }
 
-// Get FCM token from service worker
+// Get FCM token from service worker using Firebase Messaging
 async function getServiceWorkerToken(): Promise<string | null> {
   try {
-    if ('serviceWorker' in navigator) {
-      const registration = await navigator.serviceWorker.ready;
-      // This would be implemented in the service worker
-      return 'fcm-token-placeholder';
+    const { getMessaging, getToken } = await import('firebase/messaging');
+    const { firebaseApp } = await import('./firebase');
+    if (!firebaseApp) return null;
+    const messaging = getMessaging(firebaseApp);
+    const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+    if (!vapidKey) {
+      console.warn('[Push] NEXT_PUBLIC_FIREBASE_VAPID_KEY not set — push disabled');
+      return null;
     }
+    const registration = await navigator.serviceWorker.ready;
+    const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration });
+    return token || null;
   } catch (error) {
     console.error('Error getting FCM token:', error);
+    return null;
   }
-  return null;
 }
 
 // Store notification in Firestore for history

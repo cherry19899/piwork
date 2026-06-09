@@ -393,6 +393,37 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
               </p>
             </div>
 
+            {/* Attachments / Images */}
+            {(job as any).images && (() => {
+              let imgs: string[] = [];
+              try { imgs = typeof (job as any).images === 'string' ? JSON.parse((job as any).images) : (job as any).images; } catch {}
+              if (!Array.isArray(imgs) || imgs.length === 0) return null;
+              return (
+                <div style={{
+                  backgroundColor: PIWORK_THEME.colors.bgSecondary,
+                  border: `1px solid ${PIWORK_THEME.colors.border}`,
+                  borderRadius: PIWORK_THEME.radius.lg, padding: PIWORK_THEME.spacing.lg,
+                }}>
+                  <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, marginBottom: PIWORK_THEME.spacing.md }}>Вложения</h3>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {imgs.map((url, i) => (
+                      <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', borderRadius: 8, overflow: 'hidden' }}>
+                        {/\.(jpg|jpeg|png|gif|webp)$/i.test(url) ? (
+                          <img src={url} alt={`attachment-${i}`} style={{ width: 120, height: 90, objectFit: 'cover', display: 'block' }} />
+                        ) : (
+                          <div style={{
+                            width: 120, height: 90, backgroundColor: `${PIWORK_THEME.colors.primary}20`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 28, borderRadius: 8,
+                          }}>📎</div>
+                        )}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             {job.skills && (
               <div style={{
                 backgroundColor: PIWORK_THEME.colors.bgSecondary,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { PIWORK_THEME } from '@/lib/piwork-design-tokens';
 import { BottomNavigation } from '@/components/bottom-navigation';
@@ -13,6 +13,16 @@ import {
 } from '@/lib/workpro-api';
 
 type ProfileTab = 'info' | 'orders' | 'reviews' | 'portfolio';
+
+function computeLevel(completedJobs: number, rating: number) {
+  const r = rating || 0;
+  const j = completedJobs || 0;
+  if (j >= 50 && r >= 4.7) return { level: 5, title: 'Легенда', emoji: '🏆', nextJobs: null, nextRating: null };
+  if (j >= 25 && r >= 4.5) return { level: 4, title: 'Эксперт', emoji: '💎', nextJobs: 50, nextRating: 4.7 };
+  if (j >= 10 && r >= 4.3) return { level: 3, title: 'Профи', emoji: '🥇', nextJobs: 25, nextRating: 4.5 };
+  if (j >= 3 && r >= 4.0) return { level: 2, title: 'Восходящий талант', emoji: '⭐', nextJobs: 10, nextRating: 4.3 };
+  return { level: 1, title: 'Новичок', emoji: '🌱', nextJobs: 3, nextRating: 4.0 };
+}
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -28,6 +38,9 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [editData, setEditData] = useState({ bio: '', skills: '', availability: 'available' });
   const [showBuyConnects, setShowBuyConnects] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [pwaPrompt, setPwaPrompt] = useState<any>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // Portfolio form
   const [showPortfolioForm, setShowPortfolioForm] = useState(false);
@@ -39,6 +52,39 @@ export default function ProfilePage() {
   const currentUserId = typeof window !== 'undefined'
     ? JSON.parse(localStorage.getItem('piUser') || '{}')?.uid || null
     : null;
+
+  // Capture PWA install prompt
+  useEffect(() => {
+    const handler = (e: any) => { e.preventDefault(); setPwaPrompt(e); };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallPwa = async () => {
+    if (!pwaPrompt) return;
+    pwaPrompt.prompt();
+    await pwaPrompt.userChoice;
+    setPwaPrompt(null);
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentUserId) return;
+    if (file.size > 2 * 1024 * 1024) { alert('Файл слишком большой (макс. 2MB)'); return; }
+    setUploadingAvatar(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result as string;
+        const updated = await updateUser(currentUserId, { avatar: base64 });
+        setUser((prev: any) => ({ ...prev, avatar: base64, ...updated }));
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploadingAvatar(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+    }
+  };
 
   useEffect(() => {
     if (!currentUserId) { router.push('/login'); return; }
@@ -212,16 +258,50 @@ export default function ProfilePage() {
         backgroundColor: PIWORK_THEME.colors.bgSecondary,
         borderBottom: `1px solid ${PIWORK_THEME.colors.border}`,
       }}>
-        <div style={{
-          width: 72, height: 72, borderRadius: '50%',
-          backgroundColor: PIWORK_THEME.colors.primary,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 32, marginBottom: 12,
-        }}>
-          {user?.avatar || '👤'}
+        {/* Clickable avatar with upload */}
+        <div
+          onClick={() => avatarInputRef.current?.click()}
+          style={{
+            width: 72, height: 72, borderRadius: '50%',
+            backgroundColor: PIWORK_THEME.colors.primary,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 32, marginBottom: 12, cursor: 'pointer', position: 'relative',
+            backgroundImage: user?.avatar?.startsWith('data:') ? `url(${user.avatar})` : undefined,
+            backgroundSize: 'cover', backgroundPosition: 'center',
+            opacity: uploadingAvatar ? 0.6 : 1,
+          }}
+        >
+          {!user?.avatar?.startsWith('data:') && (user?.avatar || '👤')}
+          <div style={{
+            position: 'absolute', bottom: 0, right: 0,
+            width: 22, height: 22, borderRadius: '50%',
+            backgroundColor: PIWORK_THEME.colors.primary,
+            border: `2px solid ${PIWORK_THEME.colors.bgSecondary}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 11,
+          }}>📷</div>
         </div>
+        <input ref={avatarInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarUpload} />
+
         <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{user?.username}</h2>
-        <p style={{ fontSize: 13, color: PIWORK_THEME.colors.textSecondary, margin: '4px 0 8px' }}>
+
+        {/* Level badge */}
+        {(() => {
+          const lvl = computeLevel(user?.total_jobs_completed || 0, user?.rating || 0);
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '6px 0' }}>
+              <span style={{ fontSize: 16 }}>{lvl.emoji}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: PIWORK_THEME.colors.primary }}>{lvl.title}</span>
+              {lvl.nextJobs && (
+                <span style={{ fontSize: 11, color: PIWORK_THEME.colors.textSecondary }}>
+                  (до след.: {user?.total_jobs_completed || 0}/{lvl.nextJobs} задач)
+                </span>
+              )}
+            </div>
+          );
+        })()}
+
+        <p style={{ fontSize: 13, color: PIWORK_THEME.colors.textSecondary, margin: '2px 0 8px' }}>
           {user?.role === 'admin' ? '👑 Администратор' : '🔧 Фрилансер / Заказчик'}
         </p>
         {avgRating && (
@@ -399,6 +479,16 @@ export default function ProfilePage() {
             }}>
               Настройки
             </button>
+
+            {pwaPrompt && (
+              <button onClick={handleInstallPwa} style={{
+                width: '100%', padding: PIWORK_THEME.spacing.md, backgroundColor: 'transparent',
+                border: `1px solid ${PIWORK_THEME.colors.primary}`, borderRadius: PIWORK_THEME.radius.md,
+                color: PIWORK_THEME.colors.primary, cursor: 'pointer', fontSize: 14, fontWeight: 600,
+              }}>
+                📱 Добавить на главный экран
+              </button>
+            )}
 
             <button onClick={handleLogout} style={{
               width: '100%', padding: PIWORK_THEME.spacing.md, backgroundColor: 'transparent',

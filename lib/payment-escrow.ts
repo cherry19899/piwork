@@ -47,7 +47,7 @@ export interface PaymentCancellation {
 
 export class EscrowPaymentService {
   private static readonly ESCROW_TIMEOUT = 30 * 24 * 60 * 60 * 1000; // 30 days
-  private static readonly PLATFORM_FEE_PERCENTAGE = 0.05; // 5%
+  private static readonly PLATFORM_FEE_PERCENTAGE = 0.02; // 2% platform commission
 
   /**
    * Create escrow payment with two-phase confirmation

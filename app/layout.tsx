@@ -6,8 +6,8 @@ import { AppWrapper } from "@/components/app-wrapper";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PiWork — Earn Pi with your skills",
-  description: "Pi Network freelance marketplace — find work or hire talent",
+  title: "Piwork — Зарабатывай Pi своими навыками",
+  description: "Фриланс-платформа на Pi Network — находи работу или нанимай специалистов",
   manifest: "/manifest.json",
   icons: {
     icon: "/icon-light-32x32.png",
@@ -29,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="ru">
       <head>
         <style>{`
 html {

@@ -57,13 +57,25 @@ export default function FeedPage() {
   useEffect(() => { loadJobs(); }, [loadJobs]);
 
   useEffect(() => {
+    let prevCount = 0;
     const fetchNotifCount = () => {
       const uid = (() => { try { return JSON.parse(localStorage.getItem('piUser') || 'null')?.uid; } catch { return null; } })();
       if (!uid) return;
-      getNotifications().then(({ unread_count }) => setUnreadNotifs(unread_count || 0)).catch(() => {});
+      getNotifications().then(({ unread_count, notifications: notifs }) => {
+        const count = unread_count || 0;
+        setUnreadNotifs(count);
+        // Show browser notification if new unread arrived while page is open
+        if (count > prevCount && prevCount > 0 && 'Notification' in window && Notification.permission === 'granted') {
+          const newest = (notifs || [])[0];
+          if (newest) {
+            new Notification(newest.title || 'Piwork', { body: newest.body || '', icon: '/icon-192.png' });
+          }
+        }
+        prevCount = count;
+      }).catch(() => {});
     };
     fetchNotifCount();
-    const iv = setInterval(fetchNotifCount, 60000);
+    const iv = setInterval(fetchNotifCount, 30000);
     return () => clearInterval(iv);
   }, []);
 
