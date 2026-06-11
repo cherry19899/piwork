@@ -245,12 +245,22 @@ export default function CreateTaskPage() {
                   <span style={{ color: PIWORK_THEME.colors.textSecondary, fontSize: 14 }}>Комиссия (2%)</span>
                   <span style={{ color: PIWORK_THEME.colors.textSecondary }}>{(parseFloat(formData.budget) * 0.02).toFixed(2)}π</span>
                 </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ color: PIWORK_THEME.colors.textSecondary, fontSize: 14 }}>Стоимость отклика</span>
+                  <span style={{ fontWeight: 600, color: PIWORK_THEME.colors.primary }}>{Math.ceil(parseFloat(formData.budget) / 50)} коннект</span>
+                </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: `1px solid ${PIWORK_THEME.colors.border}`, paddingTop: 8 }}>
                   <span style={{ fontWeight: 700 }}>Фрилансер получит</span>
                   <span style={{ fontWeight: 700, color: PIWORK_THEME.colors.primary }}>{(parseFloat(formData.budget) * 0.98).toFixed(2)}π</span>
                 </div>
               </div>
             )}
+            <div style={{ backgroundColor: '#7C3AED15', border: '1px solid #7C3AED40', borderRadius: PIWORK_THEME.radius.md, padding: PIWORK_THEME.spacing.md }}>
+              <p style={{ margin: 0, fontSize: 12, color: PIWORK_THEME.colors.textSecondary, lineHeight: 1.6 }}>
+                💡 <strong>Стоимость отклика</strong> — сколько коннектов спишется у фрилансера при отклике:<br/>
+                1–50π = 1 коннект · 51–100π = 2 · 101–150π = 3 и т.д.
+              </p>
+            </div>
           </div>
         )}
 
@@ -261,6 +271,7 @@ export default function CreateTaskPage() {
               { label: 'Название', value: formData.title },
               { label: 'Категория', value: CATEGORY_RU[formData.category] || formData.category },
               { label: 'Бюджет', value: `${formData.budget}π` },
+              { label: 'Стоимость отклика', value: `${Math.ceil(parseFloat(formData.budget || '1') / 50)} коннект` },
               { label: 'Навыки', value: formData.skills || '—' },
               { label: 'Дедлайн', value: formData.deadline || '—' },
             ].map(({ label, value }) => (
